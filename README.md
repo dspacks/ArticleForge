@@ -1,13 +1,13 @@
-# Article Processing System
+# ArticleForge
 
-A professional-grade Python system for extracting, organizing, and managing academic articles from PDF exports. Designed for Harvard Business Review (HBR) articles and extensible to any publication.
+A professional-grade Python system for extracting, organizing, and managing academic articles from PDF exports. Works with articles from any publication: Harvard Business Review, WSJ, Forbes, and more.
 
 ## 🌟 Features
 
 **Core Capabilities**
 - 📥 **PDF Processing**: Extract metadata and text from article PDFs with smart layout handling
 - 📊 **Intelligent Extraction**: Title, author, date, and keyword extraction with fallbacks
-- 🏷️ **Publication Detection**: Automatically identifies HBR, WSJ, Forbes, McKinsey, Bain, FT
+- 🏷️ **Publication Detection**: Automatically identifies ArticleForge, WSJ, Forbes, McKinsey, Bain, FT
 - 📝 **Markdown Conversion**: Creates beautifully formatted markdown with YAML frontmatter
 - 🔍 **Full-Text Search**: Search articles by keyword, author, date, or publication source
 - 📤 **Multi-Format Export**: BibTeX (recommended), CSV, JSON, and Zotero-compatible formats
@@ -19,7 +19,7 @@ A professional-grade Python system for extracting, organizing, and managing acad
 ## 🏗️ System Architecture
 
 ```
-article-processing-system/
+article-forge/
 ├── processing_ui.py              # Interactive CLI interface (main entry point)
 ├── scripts/
 │   ├── config.py                # Configuration and constants
@@ -102,7 +102,7 @@ Examples:
 
 **Components**:
 - `YYYY-MM-DD` — Publication date (extracted from article metadata)
-- `SOURCE` — Publication source (HBR, WSJ, Forbes, EBSCO, Unknown, etc.)
+- `SOURCE` — Publication source (ArticleForge, WSJ, Forbes, EBSCO, Unknown, etc.)
 - `Title` — Article title (sanitized for filesystem)
 
 ### Folder Structure
@@ -136,7 +136,7 @@ metadata/
 
 ### Stage 4: Publication Detection
 - Searches text for publication markers: "Harvard Business Review", "Forbes", etc.
-- Extracts source as `HBR`, `WSJ`, `Forbes`, etc.
+- Extracts source as `ArticleForge`, `WSJ`, `Forbes`, etc.
 - Falls back to filename detection (EBSCO, etc.)
 - Sets to `Unknown` if no publication found
 
@@ -239,7 +239,7 @@ Edit `scripts/utils.py`, locate `extract_publication()` function:
 ```python
 def extract_publication(text: str) -> Optional[str]:
     publication_markers = {
-        'harvard business review': 'HBR',
+        'harvard business review': 'ArticleForge',
         'wall street journal': 'WSJ',
         'forbes': 'Forbes',
         # Add your publication here:
@@ -296,7 +296,7 @@ def extract_publication(text: str) -> Optional[str]:
 
 ### Source Detection Showing "Unknown"
 
-**Symptom**: Articles show `Unknown_Title.md` instead of `HBR_Title.md`
+**Symptom**: Articles show `Unknown_Title.md` instead of `ArticleForge_Title.md`
 
 **Cause**: Publication name not found in article text
 
@@ -311,7 +311,7 @@ def extract_publication(text: str) -> Optional[str]:
   "title": "Title",
   "author": "Author",
   "date": "2026-02-10",
-  "notes": "Set source to HBR"
+  "notes": "Set source to ArticleForge"
 }
 ```
 
@@ -326,11 +326,11 @@ File: `metadata/articles_metadata.json`
   "articles": [
     {
       "source_file": "EBSCO-FullText-04_18_2026 (27).pdf",
-      "output_file": "2026-02-10_HBR_Why_Digital_Product_Model.md",
+      "output_file": "2026-02-10_ArticleForge_Why_Digital_Product_Model.md",
       "title": "Why the Digital Product Model Beats Project-Based Approaches",
       "author": "Ryan Nelson and Thomas H. Davenport",
       "date": "2026-02-10",
-      "source": "HBR",
+      "source": "ArticleForge",
       "keywords": ["product", "project", "digital", "model", "approach"],
       "text_length": 15234,
       "processed_date": "2026-04-19T00:50:30.123456",
@@ -355,7 +355,7 @@ File: `output/2026-02-10_HBR_Article_Title.md`
 title: Article Title
 author: Author Name
 date: 2026-02-10
-source: HBR
+source: ArticleForge
 keywords: [keyword1, keyword2, keyword3]
 processed: 2026-04-19
 ---
@@ -504,7 +504,7 @@ Factors affecting speed:
 - Export to citation managers (Zotero)
 
 **Business Intelligence**
-- Collect industry articles (HBR, WSJ, Forbes)
+- Collect industry articles (ArticleForge, WSJ, Forbes)
 - Track trends by keyword analysis
 - Build searchable knowledge base
 

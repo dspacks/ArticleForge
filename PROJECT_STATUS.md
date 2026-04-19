@@ -1,8 +1,8 @@
-# HBR Article Processing Project — Complete Status
+# ArticleForge Article Processing Project — Complete Status
 
 ## ✅ Project Complete
 
-Your HBR article processing system is fully organized with:
+Your ArticleForge article processing system is fully organized with:
 - **28 markdown files** with metadata (output/)
 - **35 archived PDFs** renamed to match articles (pdf_archive/)
 - **Centralized metadata registry** (articles_metadata.json)
@@ -18,7 +18,7 @@ Your HBR article processing system is fully organized with:
 2024-07-16_When leaders assume that their.md
 2025-12-09_A new survey of 1,150 U.S. employees found.md
 2025-12-09_Align your ambitions with the.md
-2025-12-09_HBR's fictionalized case studies present problems faced by leaders in.md
+2025-12-09_ArticleForge's fictionalized case studies present problems faced by leaders in.md
 2025-12-09_In a survey of 1,527 adults in the United States conducted by the Wall Street Journal and NORC,.md
 2025-12-09_January–February 2026.md
 2025-12-09_Since becoming McKinsey & Company's global.md
@@ -230,7 +230,7 @@ Create tools to:
 ## File Structure Summary
 
 ```
-HBR/
+ArticleForge/
 ├── output/                    (28 markdown files, organized by date)
 │   ├── 2024-07-16_*.md
 │   ├── 2025-12-09_*.md

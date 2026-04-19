@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HBR Article Processing System — Interactive CLI
+ArticleForge Article Processing System — Interactive CLI
 
 A beautiful, interactive interface for managing your Harvard Business Review
 article collection. Process PDFs, search metadata, export data, and more.
@@ -32,8 +32,8 @@ class Colors:
     DIM = '\033[2m'
 
 
-class HBRCLi:
-    """Interactive CLI for HBR article processing"""
+class ArticleForgeCLi:
+    """Interactive CLI for ArticleForge article processing"""
 
     def __init__(self):
         self.base_dir = Path(__file__).parent
@@ -99,7 +99,7 @@ class HBRCLi:
 
     def show_dashboard(self):
         """Show system dashboard"""
-        self.print_header("📊 HBR Article Processing System")
+        self.print_header("📊 ArticleForge Article Processing System")
 
         stats = self.get_stats()
 
@@ -577,7 +577,7 @@ class HBRCLi:
 def main():
     """Entry point"""
     try:
-        cli = HBRCLi()
+        cli = ArticleForgeCLi()
         cli.run()
     except KeyboardInterrupt:
         print(f"\n\n{Colors.YELLOW}Interrupted by user{Colors.ENDC}")

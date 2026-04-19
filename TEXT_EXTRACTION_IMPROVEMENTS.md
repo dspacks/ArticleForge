@@ -32,7 +32,7 @@ AFTER:  "responsible"  ← hyphenation fixed
 
 ## ⚠️ Remaining Challenge: Multi-Column Layouts
 
-HBR articles use a magazine format with:
+ArticleForge articles use a magazine format with:
 - Multiple columns per page
 - Text flowing left-to-right in columns
 - Sidebars with supplementary info

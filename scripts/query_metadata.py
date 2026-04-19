@@ -98,7 +98,7 @@ def list_needs_editing(registry: Dict) -> None:
     print(f"\n📝 HOW TO FIX:")
     print(f"1. Open: metadata/manual_metadata_overrides.json")
     print(f"2. Add entries with author information, e.g.:")
-    print(f"   {{\n     \"2026-02-10_HBR_Article_Title.md\": {{\n       \"author\": \"Author Name\"\n     }}\n   }}")
+    print(f"   {{\n     \"2026-02-10_ArticleForge_Article_Title.md\": {{\n       \"author\": \"Author Name\"\n     }}\n   }}")
     print(f"3. Re-run the system to apply overrides")
     print(f"{'=' * 80}")
 

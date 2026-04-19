@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Article Processing System — Module entry point
+ArticleForge — Module entry point
 
 Allows running the system via:
-    python -m hbr_system
-    python -m hbr_system --help
+    python -m article_forge
+    python -m article_forge --help
 
 Or from anywhere if installed as a package.
 """
@@ -16,14 +16,14 @@ from pathlib import Path
 # Add scripts to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "scripts"))
 
-from processing_ui import HBRCLi
+from processing_ui import ArticleForgeCLi
 
 
 def main():
     """Main entry point with CLI argument parsing."""
     parser = argparse.ArgumentParser(
-        prog="article-processing-system",
-        description="Professional article processing system for PDFs",
+        prog="article-forge",
+        description="ArticleForge - Professional PDF article processing and organization",
         epilog="Run without arguments to launch interactive CLI"
     )
 
@@ -49,9 +49,9 @@ def main():
 
     parser.add_argument(
         "--format",
-        choices=["csv", "json"],
-        default="csv",
-        help="Export format (default: csv)"
+        choices=["bibtex", "csv", "json"],
+        default="bibtex",
+        help="Export format (default: bibtex - recommended for Zotero)"
     )
 
     parser.add_argument(
@@ -69,7 +69,7 @@ def main():
     args = parser.parse_args()
 
     # Launch CLI
-    cli = HBRCLi()
+    cli = ArticleForgeCLi()
 
     if args.mode == "cli":
         # Interactive mode

@@ -185,16 +185,16 @@ Set before running:
 
 ```bash
 # Control output directory
-export HBR_OUTPUT_DIR=/custom/path/output
+export ArticleForge_OUTPUT_DIR=/custom/path/output
 
 # Enable debug mode
-export HBR_DEBUG=1
+export ArticleForge_DEBUG=1
 
 # Set custom metadata location
-export HBR_METADATA_DIR=/custom/path/metadata
+export ArticleForge_METADATA_DIR=/custom/path/metadata
 
 # Run with variables
-HBR_DEBUG=1 python3 processing_ui.py
+ArticleForge_DEBUG=1 python3 processing_ui.py
 ```
 
 ## Integration Examples

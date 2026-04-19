@@ -1,4 +1,4 @@
-# Known Issues — HBR Article Processing System
+# Known Issues — ArticleForge Article Processing System
 
 **Generated:** 2026-04-19  
 **Test suite run:** 175 tests — 174 passed, 1 confirmed bug, several additional issues found through static code review.

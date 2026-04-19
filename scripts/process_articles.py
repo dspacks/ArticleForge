@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HBR Article Processing Pipeline
+ArticleForge Article Processing Pipeline
 
 Converts PDF articles to Markdown with metadata extraction and keyword tagging.
 Maintains centralized JSON metadata registry.
@@ -218,7 +218,7 @@ class ArticleProcessor:
             return
 
         print(f"\n{'=' * 70}")
-        print(f"HBR Article Processing Pipeline")
+        print(f"ArticleForge Article Processing Pipeline")
         print(f"Found {len(intake_files)} PDF(s) to process")
         if self.dry_run:
             print("[DRY RUN MODE - No files will be written]")
@@ -308,7 +308,7 @@ class ArticleProcessor:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Process HBR articles from PDF to Markdown"
+        description="Process ArticleForge articles from PDF to Markdown"
     )
     parser.add_argument(
         '--rebuild',

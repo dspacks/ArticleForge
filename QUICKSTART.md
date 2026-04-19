@@ -1,11 +1,11 @@
-# Quick Start Guide: HBR Article Processing
+# Quick Start Guide: ArticleForge Article Processing
 
 ## 30-Second Setup
 
 ### 1. Install Dependencies
 
 ```bash
-cd HBR/scripts
+cd ArticleForge/scripts
 pip install -r requirements.txt --break-system-packages
 ```
 
@@ -27,7 +27,7 @@ python process_articles.py
 ```
 
 The script will:
-- Process 39 EBSCO HBR PDFs from `intake/` folder
+- Process 39 EBSCO ArticleForge PDFs from `intake/` folder
 - Create markdown files in `output/` with YYYY-MM-DD naming
 - Move PDFs to `pdf_archive/`
 - Generate `metadata/articles_metadata.json`
@@ -35,7 +35,7 @@ The script will:
 **Expected output:**
 ```
 ======================================================================
-HBR Article Processing Pipeline
+ArticleForge Article Processing Pipeline
 Found 39 PDF(s) to process
 ======================================================================
 

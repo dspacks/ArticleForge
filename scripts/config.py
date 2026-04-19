@@ -1,5 +1,5 @@
 """
-Configuration for HBR Article Processing System
+Configuration for ArticleForge Article Processing System
 """
 
 import os

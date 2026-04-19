@@ -1,4 +1,4 @@
-HBR ARTICLE PROCESSING SYSTEM — HARDENING RECOMMENDATIONS
+ArticleForge ARTICLE PROCESSING SYSTEM — HARDENING RECOMMENDATIONS
 ==========================================================
 Generated: 2026-04-19
 Based on: Full codebase review + 175-test validation suite

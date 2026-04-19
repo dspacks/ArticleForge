@@ -1,6 +1,6 @@
-# TESTING.md — HBR Article Processing System
+# TESTING.md — ArticleForge Article Processing System
 
-**Test Suite Location:** `/sessions/dazzling-epic-carson/mnt/PROJECTS/HBR/test_suite.py`  
+**Test Suite Location:** `/sessions/dazzling-epic-carson/mnt/PROJECTS/ArticleForge/test_suite.py`  
 **Test Framework:** pytest  
 **Python Version Tested:** 3.10.12  
 **Total Tests:** 175  
@@ -139,7 +139,7 @@ The suite is organized into 20 test classes covering the entire codebase:
 - Text beyond 1500 chars is ignored (position cutoff test)
 - Unknown publication returns `None` correctly
 
-**Known gap:** The detection is a first-match-wins scan. If both "mckinsey" and "harvard business review" appear in the same text, HBR wins because it appears earlier in the dict definition order. The dict iteration order in Python 3.7+ is insertion order — this is stable but fragile.
+**Known gap:** The detection is a first-match-wins scan. If both "mckinsey" and "harvard business review" appear in the same text, ArticleForge wins because it appears earlier in the dict definition order. The dict iteration order in Python 3.7+ is insertion order — this is stable but fragile.
 
 ---
 

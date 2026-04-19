@@ -73,7 +73,7 @@ def migrate_files(dry_run: bool = False) -> None:
             date_part = output_file[:10]  # YYYY-MM-DD
             if re.match(r'^\d{4}-\d{2}-\d{2}$', date_part):
                 parts = output_file[11:].split('_', 1)  # Skip date and first underscore
-                if len(parts) > 0 and parts[0].upper() in ['EBSCO', 'HBR', 'HARVARD', 'UNKNOWN']:
+                if len(parts) > 0 and parts[0].upper() in ['EBSCO', 'ArticleForge', 'HARVARD', 'UNKNOWN']:
                     # Already has source prefix
                     print(f"✓ Already migrated: {output_file}")
                     updated_articles.append(article)

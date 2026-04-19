@@ -10,7 +10,7 @@ Install normally:
 
 Create standalone executable:
     pip install pyinstaller
-    pyinstaller --onefile hbr-cli
+    pyinstaller --onefile article-forge
 """
 
 from setuptools import setup, find_packages
@@ -24,14 +24,14 @@ if requirements_file.exists():
         requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 setup(
-    name="article-processing-system",
+    name="article-forge",
     version="1.0.0",
-    description="Professional article processing system for PDFs",
+    description="Professional PDF article processing, extraction, and organization system",
     long_description=Path(__file__).parent.joinpath("README.md").read_text(),
     long_description_content_type="text/markdown",
-    author="Article Processing Team",
+    author="Article Forge Team",
     author_email="noreply@example.com",
-    url="https://github.com/example/article-processing-system",
+    url="https://github.com/example/article-forge",
     license="MIT",
 
     packages=find_packages(),
@@ -41,7 +41,7 @@ setup(
 
     entry_points={
         "console_scripts": [
-            "hbr-cli=__main__:main",
+            "article-forge=__main__:main",
         ],
     },
 
@@ -63,8 +63,8 @@ setup(
     keywords="pdf articles markdown metadata extraction zotero",
 
     project_urls={
-        "Documentation": "https://github.com/example/article-processing-system/wiki",
-        "Source": "https://github.com/example/article-processing-system",
-        "Tracker": "https://github.com/example/article-processing-system/issues",
+        "Documentation": "https://github.com/example/article-forge/wiki",
+        "Source": "https://github.com/example/article-forge",
+        "Tracker": "https://github.com/example/article-forge/issues",
     },
 )

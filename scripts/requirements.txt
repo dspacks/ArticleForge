@@ -1,4 +1,4 @@
-# HBR Article Processing System Requirements
+# ArticleForge Article Processing System Requirements
 
 # PDF text extraction
 pdfplumber>=0.9.0

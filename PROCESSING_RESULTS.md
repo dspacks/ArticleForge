@@ -1,4 +1,4 @@
-# HBR Article Processing Results
+# ArticleForge Article Processing Results
 
 ## ✅ Processing Complete: 35/39 Articles Successfully Processed
 
@@ -196,9 +196,9 @@ I can create a script to let you manually specify proper titles/authors for prob
 
 ## Files Ready for Use
 
-✅ **Output folder**: `/HBR/output/` (28 unique markdown files)
-✅ **Metadata registry**: `/HBR/metadata/articles_metadata.json` (35 articles tracked)
-✅ **Archived PDFs**: `/HBR/pdf_archive/` (35 original PDFs)
+✅ **Output folder**: `/ArticleForge/output/` (28 unique markdown files)
+✅ **Metadata registry**: `/ArticleForge/metadata/articles_metadata.json` (35 articles tracked)
+✅ **Archived PDFs**: `/ArticleForge/pdf_archive/` (35 original PDFs)
 ✅ **Query tools**: `python scripts/query_metadata.py`
 
 ---

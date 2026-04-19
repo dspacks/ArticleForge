@@ -2,7 +2,7 @@
 
 ## Overview
 
-The HBR processing system now includes the source database/journal in markdown filenames, making it easy to identify where each article came from at a glance.
+The ArticleForge processing system now includes the source database/journal in markdown filenames, making it easy to identify where each article came from at a glance.
 
 ## Filename Format
 
@@ -11,7 +11,7 @@ The HBR processing system now includes the source database/journal in markdown f
 Example: `2026-02-10_EBSCO_Why_the_Digital_Product_Model.md`
 
 - **YYYY-MM-DD** — Publication date
-- **SOURCE** — Database/journal source (e.g., EBSCO, HBR, Harvard)
+- **SOURCE** — Database/journal source (e.g., EBSCO, ArticleForge, Harvard)
 - **Title** — Article title (sanitized for filesystem)
 
 ## How It Works
@@ -87,10 +87,10 @@ To add a new source type:
 
 Example:
 ```python
-# Detect custom format: HBR-YYYY-MM-DD-*.pdf
-match = re.match(r'HBR-(\d{4})-(\d{2})-(\d{2})', pdf_filename)
+# Detect custom format: ArticleForge-YYYY-MM-DD-*.pdf
+match = re.match(r'ArticleForge-(\d{4})-(\d{2})-(\d{2})', pdf_filename)
 if match:
-    metadata['source'] = 'HBR'
+    metadata['source'] = 'ArticleForge'
 ```
 
 ## Integration Points

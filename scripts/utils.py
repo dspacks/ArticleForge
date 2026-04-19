@@ -132,7 +132,7 @@ def extract_text_from_pdf(pdf_path: Path, use_layout_mode: bool = True) -> str:
 
     text = ""
 
-    # Try layout-aware extraction first (better for multi-column HBR PDFs)
+    # Try layout-aware extraction first (better for multi-column ArticleForge PDFs)
     try:
         with pdfplumber.open(pdf_path) as pdf:
             for page_num, page in enumerate(pdf.pages, 1):
@@ -503,7 +503,7 @@ def create_markdown_content(
         date: Publication date (YYYY-MM-DD)
         keywords: List of keywords/tags
         text: Full article text
-        source: Publication/source name (e.g., HBR, WSJ)
+        source: Publication/source name (e.g., ArticleForge, WSJ)
 
     Returns:
         Formatted markdown string
@@ -553,9 +553,9 @@ def extract_publication(text: str) -> Optional[str]:
 
     # Check for specific publications
     publication_markers = {
-        'harvard business review': 'HBR',
-        'hbr.org': 'HBR',
-        'harvard business': 'HBR',
+        'harvard business review': 'ArticleForge',
+        'hbr.org': 'ArticleForge',
+        'harvard business': 'ArticleForge',
         'wall street journal': 'WSJ',
         'financial times': 'FT',
         'forbes': 'Forbes',

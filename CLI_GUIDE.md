@@ -1,4 +1,4 @@
-# HBR Article System — Interactive CLI Guide
+# ArticleForge Article System — Interactive CLI Guide
 
 ## Quick Start
 
@@ -6,13 +6,13 @@
 
 **Linux/macOS:**
 ```bash
-cd HBR
+cd ArticleForge
 ./start.sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-cd HBR
+cd ArticleForge
 python hbr.py
 ```
 
@@ -212,7 +212,7 @@ The dashboard at the top of each screen shows:
 After using the CLI, your folder structure looks like:
 
 ```
-HBR/
+ArticleForge/
 ├── hbr.py                 (Main CLI interface)
 ├── start.sh               (Launcher script)
 ├── output/                (Processed markdown files)
@@ -294,7 +294,7 @@ python query_metadata.py --stats
 
 The CLI is designed to be extended. To add new features:
 
-1. Add method to `HBRCLi` class in `hbr.py`
+1. Add method to `ArticleForgeCLi` class in `hbr.py`
 2. Add menu option in `show_menu()`
 3. Call your method from `run()` loop
 

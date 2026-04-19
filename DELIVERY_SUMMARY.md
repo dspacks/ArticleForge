@@ -11,7 +11,7 @@
 A **production-ready article processing system** with:
 
 ### Core System (Reprocessed)
-- ✅ All 39 articles reprocessed with **journal source detection** (HBR, WSJ, Forbes, etc.)
+- ✅ All 39 articles reprocessed with **journal source detection** (ArticleForge, WSJ, Forbes, etc.)
 - ✅ Filenames now include source: `YYYY-MM-DD_SOURCE_Title.md`
 - ✅ Metadata registry rebuilt with publication information
 - ✅ 36 markdown files with YAML frontmatter (source in metadata)
@@ -84,7 +84,7 @@ A **production-ready article processing system** with:
 | Test Coverage | 175 test cases |
 | Documentation | 5 markdown guides |
 | Known Issues | 13 (all documented) |
-| Publication Sources Detected | 5 (HBR, WSJ, Forbes, EBSCO, Unknown) |
+| Publication Sources Detected | 5 (ArticleForge, WSJ, Forbes, EBSCO, Unknown) |
 | Keywords Extracted | 175+ unique keywords |
 
 ---
@@ -219,7 +219,7 @@ project/
 
 ### Journal Source Detection
 ```
-2026-02-10_HBR_Why_the_Digital_Product_Model.md
+2026-02-10_ArticleForge_Why_the_Digital_Product_Model.md
 2025-12-09_WSJ_In_a_survey_of_1527_adults.md
 2026-02-10_Forbes_AI_Lets_Startups_Grow_Quickly.md
 ```

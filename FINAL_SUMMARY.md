@@ -1,4 +1,4 @@
-# HBR Article Processing System — Final Summary
+# ArticleForge Article Processing System — Final Summary
 
 ## 🎉 Complete Success: 39/39 Articles Processed
 
@@ -83,7 +83,7 @@
 2025-12-09_A new survey of 1,150 U.S. employees found.md
 2025-12-09_Align your ambitions with the.md
 2025-12-09_Get Off the Transformation Treadmill.md
-2025-12-09_HBR's fictionalized case studies present problems faced by leaders in.md
+2025-12-09_ArticleForge's fictionalized case studies present problems faced by leaders in.md
 2025-12-09_In a survey of 1,527 adults in the United States conducted by the Wall Street Journal and NORC,.md
 2025-12-09_January–February 2026.md
 2025-12-09_Since becoming McKinsey & Company's global.md
@@ -144,7 +144,7 @@ ls pdf_archive/2026-02-10* | wc -l   # Count articles by date
 ## 📚 System Architecture
 
 ```
-HBR/
+ArticleForge/
 ├── output/                           (32 markdown files)
 │   ├── 2024-07-16_*.md
 │   ├── 2025-12-09_*.md              (includes "Get Off the Transformation...")
@@ -204,7 +204,7 @@ HBR/
 
 ### Quick Search
 ```bash
-cd HBR/scripts
+cd ArticleForge/scripts
 python query_metadata.py --by-keyword leadership
 ```
 

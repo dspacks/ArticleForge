@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HBR Article Processing System — Comprehensive Test Suite
+ArticleForge Article Processing System — Comprehensive Test Suite
 =========================================================
 
 Tests cover:
@@ -56,11 +56,11 @@ def minimal_registry():
         "articles": [
             {
                 "source_file": "test.pdf",
-                "output_file": "2024-01-15_HBR_Test Article.md",
+                "output_file": "2024-01-15_ArticleForge_Test Article.md",
                 "title": "Test Article",
                 "author": "Jane Doe",
                 "date": "2024-01-15",
-                "source": "HBR",
+                "source": "ArticleForge",
                 "keywords": ["leadership", "strategy", "innovation"],
                 "text_length": 5000,
                 "processed_date": "2026-04-19T10:00:00",
@@ -269,9 +269,9 @@ class TestExtractTitle:
     def test_all_caps_line_rejected(self):
         """An all-uppercase line should be skipped as title."""
         from utils import extract_title
-        text = "HBR MASTHEAD HEADER\nThis is the real article title for testing"
+        text = "ArticleForge MASTHEAD HEADER\nThis is the real article title for testing"
         result = extract_title(text, None)
-        assert result != "HBR MASTHEAD HEADER"
+        assert result != "ArticleForge MASTHEAD HEADER"
 
     def test_very_short_lines_rejected(self):
         """Lines < 20 chars should be skipped."""
@@ -495,12 +495,12 @@ class TestExtractPublication:
     def test_detects_hbr(self):
         from utils import extract_publication
         result = extract_publication("Harvard Business Review article on leadership...")
-        assert result == "HBR"
+        assert result == "ArticleForge"
 
     def test_detects_hbr_domain(self):
         from utils import extract_publication
         result = extract_publication("Read more at hbr.org for insights...")
-        assert result == "HBR"
+        assert result == "ArticleForge"
 
     def test_detects_wsj(self):
         from utils import extract_publication
@@ -548,7 +548,7 @@ class TestExtractPublication:
         """Markers are compared case-insensitively."""
         from utils import extract_publication
         result = extract_publication("HARVARD BUSINESS REVIEW published this...")
-        assert result == "HBR"
+        assert result == "ArticleForge"
 
 
 # ===========================================================================
@@ -636,8 +636,8 @@ class TestCreateMarkdownContent:
 
     def test_source_included(self):
         from utils import create_markdown_content
-        result = create_markdown_content("T", "A", "2024-01-01", [], "Text", source="HBR")
-        assert "source: HBR" in result
+        result = create_markdown_content("T", "A", "2024-01-01", [], "Text", source="ArticleForge")
+        assert "source: ArticleForge" in result
 
     def test_body_text_appended(self):
         from utils import create_markdown_content
@@ -936,7 +936,7 @@ class TestZoteroExport:
             "title": "Test Title",
             "author": "Jane Doe",
             "date": "2024-01-01",
-            "source": "HBR",
+            "source": "ArticleForge",
             "keywords": ["strategy"],
             "processed_date": "2026-04-19",
         }
@@ -951,7 +951,7 @@ class TestZoteroExport:
         import zotero_export as ze
         article = {
             "title": "T", "author": "Alice Smith and Bob Jones",
-            "date": "2024-01-01", "source": "HBR", "keywords": [],
+            "date": "2024-01-01", "source": "ArticleForge", "keywords": [],
             "processed_date": "2026-04-19"
         }
         result = ze.format_for_zotero(article)
@@ -960,14 +960,14 @@ class TestZoteroExport:
     def test_format_no_author(self):
         import zotero_export as ze
         article = {"title": "T", "author": None, "date": "2024-01-01",
-                   "source": "HBR", "keywords": [], "processed_date": ""}
+                   "source": "ArticleForge", "keywords": [], "processed_date": ""}
         result = ze.format_for_zotero(article)
         assert result["creators"] == []
 
     def test_export_to_csv_creates_file(self, tmp_path):
         import zotero_export as ze
         articles = [{"title": "T", "author": "A", "date": "2024-01-01",
-                     "source": "HBR", "keywords": ["kw1"], "processed_date": "2026-04-19"}]
+                     "source": "ArticleForge", "keywords": ["kw1"], "processed_date": "2026-04-19"}]
         out = tmp_path / "zotero.csv"
         ze.export_to_csv(articles, out)
         assert out.exists()
@@ -975,7 +975,7 @@ class TestZoteroExport:
     def test_export_to_json_creates_file(self, tmp_path):
         import zotero_export as ze
         articles = [{"title": "T", "author": "A", "date": "2024-01-01",
-                     "source": "HBR", "keywords": [], "processed_date": "2026-04-19"}]
+                     "source": "ArticleForge", "keywords": [], "processed_date": "2026-04-19"}]
         out = tmp_path / "zotero.json"
         ze.export_to_json(articles, out)
         assert out.exists()
@@ -1015,39 +1015,39 @@ class TestRenamePDFs:
         return rnm
 
     def test_dry_run_does_not_rename(self, tmp_path):
-        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_HBR_Title.md"}]
+        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_ArticleForge_Title.md"}]
         rnm = self._setup(tmp_path, articles)
         (tmp_path / "archive" / "old.pdf").write_bytes(b"PDF")
         rnm.rename_pdfs(dry_run=True)
         assert (tmp_path / "archive" / "old.pdf").exists()
-        assert not (tmp_path / "archive" / "2024-01-01_HBR_Title.pdf").exists()
+        assert not (tmp_path / "archive" / "2024-01-01_ArticleForge_Title.pdf").exists()
 
     def test_real_rename(self, tmp_path):
-        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_HBR_Title.md"}]
+        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_ArticleForge_Title.md"}]
         rnm = self._setup(tmp_path, articles)
         (tmp_path / "archive" / "old.pdf").write_bytes(b"PDF")
         rnm.rename_pdfs(dry_run=False)
         assert not (tmp_path / "archive" / "old.pdf").exists()
-        assert (tmp_path / "archive" / "2024-01-01_HBR_Title.pdf").exists()
+        assert (tmp_path / "archive" / "2024-01-01_ArticleForge_Title.pdf").exists()
 
     def test_skip_if_dest_exists(self, tmp_path):
-        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_HBR_Title.md"}]
+        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_ArticleForge_Title.md"}]
         rnm = self._setup(tmp_path, articles)
         (tmp_path / "archive" / "old.pdf").write_bytes(b"PDF")
-        (tmp_path / "archive" / "2024-01-01_HBR_Title.pdf").write_bytes(b"EXISTING")
+        (tmp_path / "archive" / "2024-01-01_ArticleForge_Title.pdf").write_bytes(b"EXISTING")
         rnm.rename_pdfs(dry_run=False)
         # old.pdf should still exist (not overwritten)
         assert (tmp_path / "archive" / "old.pdf").exists()
 
     def test_source_not_found(self, tmp_path, capsys):
-        articles = [{"source_file": "missing.pdf", "output_file": "2024-01-01_HBR_Title.md"}]
+        articles = [{"source_file": "missing.pdf", "output_file": "2024-01-01_ArticleForge_Title.md"}]
         rnm = self._setup(tmp_path, articles)
         rnm.rename_pdfs(dry_run=False)
         captured = capsys.readouterr()
         assert "Not found" in captured.out
 
     def test_missing_source_file_field(self, tmp_path):
-        articles = [{"output_file": "2024-01-01_HBR_Title.md"}]  # no source_file
+        articles = [{"output_file": "2024-01-01_ArticleForge_Title.md"}]  # no source_file
         rnm = self._setup(tmp_path, articles)
         rnm.rename_pdfs(dry_run=False)  # should not crash
 
@@ -1175,7 +1175,7 @@ class TestDataIntegrity:
         registry = {
             "articles": [
                 {"title": f"Article {i}", "author": "A", "date": "2024-01-01",
-                 "source": "HBR", "output_file": f"art{i}.md",
+                 "source": "ArticleForge", "output_file": f"art{i}.md",
                  "keywords": ["kw"], "text_length": 100}
                 for i in range(10)
             ]
@@ -1189,9 +1189,9 @@ class TestDataIntegrity:
 
     def test_rebuild_preserves_filename(self, tmp_dir):
         """Rebuild should set output_file to the md filename it read."""
-        md_path = tmp_dir / "output" / "2024-01-15_HBR_Some Title.md"
+        md_path = tmp_dir / "output" / "2024-01-15_ArticleForge_Some Title.md"
         md_path.write_text(
-            "---\ntitle: Some Title\nauthor: Jane\ndate: 2024-01-15\nsource: HBR\n"
+            "---\ntitle: Some Title\nauthor: Jane\ndate: 2024-01-15\nsource: ArticleForge\n"
             "keywords: [leadership, strategy]\nprocessed: 2026-04-19\n---\nBody text."
         )
         import process_articles as pa
@@ -1201,7 +1201,7 @@ class TestDataIntegrity:
         import importlib; importlib.reload(pa)
         proc = pa.ArticleProcessor()
         proc.rebuild_registry()
-        assert proc.metadata["articles"][0]["output_file"] == "2024-01-15_HBR_Some Title.md"
+        assert proc.metadata["articles"][0]["output_file"] == "2024-01-15_ArticleForge_Some Title.md"
 
     def test_no_duplicate_entries_after_multiple_loads(self, tmp_dir, minimal_registry):
         """Loading and saving twice should not double-up articles."""
@@ -1226,10 +1226,10 @@ class TestDataIntegrity:
 class TestCLILayer:
 
     def _make_cli(self, tmp_dir):
-        """Instantiate HBRCLi with base_dir patched to tmp_dir."""
+        """Instantiate ArticleForgeCLi with base_dir patched to tmp_dir."""
         sys.path.insert(0, str(PROJECT_ROOT))
         import processing_ui as ui
-        cli = ui.HBRCLi.__new__(ui.HBRCLi)
+        cli = ui.ArticleForgeCLi.__new__(ui.ArticleForgeCLi)
         cli.base_dir = tmp_dir
         cli.scripts_dir = tmp_dir / "scripts"
         cli.output_dir = tmp_dir / "output"
@@ -1306,7 +1306,7 @@ class TestCLILayer:
     def test_quick_preview_non_integer_input(self, tmp_dir):
         """Non-integer article selection should not crash."""
         cli = self._make_cli(tmp_dir)
-        md = tmp_dir / "output" / "2024-01-15_HBR_Test.md"
+        md = tmp_dir / "output" / "2024-01-15_ArticleForge_Test.md"
         md.write_text("---\ntitle: Test\n---\nBody text.")
         with patch("builtins.input", side_effect=["abc", ""]):
             cli.menu_quick_preview()
@@ -1362,9 +1362,9 @@ class TestFileSystemEdgeCases:
         old_content = b"ORIGINAL"
         new_content = b"EXISTING_DEST"
         (tmp_path / "archive" / "old.pdf").write_bytes(old_content)
-        (tmp_path / "archive" / "2024-01-01_HBR_Title.pdf").write_bytes(new_content)
+        (tmp_path / "archive" / "2024-01-01_ArticleForge_Title.pdf").write_bytes(new_content)
 
-        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_HBR_Title.md"}]
+        articles = [{"source_file": "old.pdf", "output_file": "2024-01-01_ArticleForge_Title.md"}]
         (tmp_path / "reg.json").write_text(json.dumps({"articles": articles}))
 
         import rename_archived_pdfs as rnm
@@ -1372,7 +1372,7 @@ class TestFileSystemEdgeCases:
         rnm.rename_pdfs(dry_run=False)
 
         # Destination should be unchanged (not overwritten)
-        assert (tmp_path / "archive" / "2024-01-01_HBR_Title.pdf").read_bytes() == new_content
+        assert (tmp_path / "archive" / "2024-01-01_ArticleForge_Title.pdf").read_bytes() == new_content
 
     def test_intake_with_non_pdf_files_ignored(self, tmp_dir, capsys):
         """Non-PDF files in intake should be ignored by process_all."""
