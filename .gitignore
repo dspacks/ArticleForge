@@ -179,3 +179,27 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# User data (not part of system)
+intake/
+output/
+pdf_archive/
+metadata/articles_metadata.json
+metadata/zotero_export.csv
+metadata/zotero_export.json
+metadata/articles_export.csv
+metadata/articles_export.json
+metadata/manual_metadata_overrides.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+DELIVERY_SUMMARY.md

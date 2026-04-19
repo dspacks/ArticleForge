@@ -1,0 +1,172 @@
+HBR ARTICLE PROCESSING SYSTEM — HARDENING RECOMMENDATIONS
+==========================================================
+Generated: 2026-04-19
+Based on: Full codebase review + 175-test validation suite
+
+
+TOP 10 RECOMMENDATIONS (priority order)
+-----------------------------------------
+
+1. FIX BUG-001 IMMEDIATELY — NULL AUTHOR CRASHES SEARCH
+   File: scripts/query_metadata.py, line 102
+   Current:
+       results = [a for a in articles if author.lower() in a.get('author', '').lower()]
+   Fixed:
+       results = [a for a in articles if author.lower() in (a.get('author') or '').lower()]
+   Why urgent: This is the only confirmed crash. Users who process articles where author
+   cannot be extracted (very common with EBSCO PDFs) will have null author entries in
+   their registry, and ANY subsequent author search will crash with AttributeError.
+   Effort: 1 line. Do this now.
+
+
+2. FIX YAML FRONTMATTER QUOTING (BUG-002)
+   File: scripts/utils.py, create_markdown_content()
+   Problem: Titles/authors with colons produce invalid YAML that silently corrupts
+   data during --rebuild. This is a data integrity issue.
+   Solution: Either use PyYAML's yaml.dump() for the frontmatter block, or at minimum
+   wrap string values in double-quotes, escaping any embedded double-quotes:
+       def yaml_str(s):
+           if s is None:
+               return ''
+           s = str(s).replace('"', "'")
+           return f'"{s}"' if ':' in s or s.startswith('#') else s
+       frontmatter.append(f"title: {yaml_str(title)}")
+   Effort: ~20 lines. Critical for data integrity.
+
+
+3. ADD FILENAME LENGTH CAP (BUG-004)
+   File: scripts/utils.py, sanitize_filename()
+   Problem: Long PDF titles (>200 chars) produce filenames exceeding the 255-byte
+   filesystem limit. This causes an OSError buried inside process_pdf()'s catch-all
+   exception handler, looking like a generic failure rather than a filename issue.
+   Solution: Add at the end of sanitize_filename():
+       MAX_LEN = 200
+       if len(sanitized) > MAX_LEN:
+           sanitized = sanitized[:MAX_LEN].rstrip()
+   Effort: 3 lines.
+
+
+4. ADD PRE-FLIGHT DEPENDENCY CHECK (BUG-008)
+   File: scripts/process_articles.py, process_all() beginning
+   Problem: Missing dependencies (pdfplumber, PyPDF2) are discovered per-file during
+   the batch, producing one error per PDF rather than one up-front message.
+   Solution: Add to the top of process_all():
+       from utils import PDFPLUMBER_AVAILABLE, PYPDF2_AVAILABLE
+       if not PDFPLUMBER_AVAILABLE:
+           print("FATAL: pdfplumber is not installed. Run: pip install pdfplumber")
+           return
+   Effort: 5 lines. Dramatically improves user experience on fresh installs.
+
+
+5. REPLACE BARE except: WITH SPECIFIC EXCEPTION TYPES (BUG-006)
+   File: processing_ui.py, multiple locations (get_stats, menu_zotero_export, _add_override)
+   Problem: `except:` catches KeyboardInterrupt, SystemExit, and other signals,
+   potentially swallowing intentional user interrupts and masking real errors.
+   Solution: Replace all `except:` with `except (json.JSONDecodeError, IOError, OSError, ValueError):`
+   and log the specific error at minimum. For the dashboard, show a yellow warning
+   instead of silently showing 0s.
+   Effort: ~10 lines across 3 functions.
+
+
+6. CAPTURE SUBPROCESS STDERR IN CLI (BUG-007)
+   File: processing_ui.py, _run_processor() and _run_rename()
+   Problem: subprocess.run() without stderr capture lets Python tracebacks
+   dump raw to the terminal, bypassing the CLI's styled error output.
+   Solution:
+       result = subprocess.run(
+           cmd,
+           cwd=str(self.scripts_dir),
+           stderr=subprocess.PIPE,
+           text=True
+       )
+       if result.returncode != 0:
+           self.print_error("Processing failed:")
+           for line in result.stderr.splitlines()[-10:]:
+               print(f"  {line}")
+   Also add return code checking to _run_rename().
+   Effort: ~10 lines.
+
+
+7. USE ATOMIC WRITES FOR THE METADATA REGISTRY (BUG-009)
+   File: scripts/process_articles.py, save_metadata_registry()
+   Problem: A crash or concurrent write mid-save can produce a partial/empty JSON file,
+   destroying all registry data.
+   Solution: Write to a temp file, then rename (atomic on POSIX systems):
+       import tempfile, os
+       tmp_fd, tmp_path = tempfile.mkstemp(dir=METADATA_REGISTRY.parent, suffix='.tmp')
+       try:
+           with os.fdopen(tmp_fd, 'w') as f:
+               json.dump(self.metadata, f, indent=2)
+           os.replace(tmp_path, METADATA_REGISTRY)
+       except Exception:
+           os.unlink(tmp_path)
+           raise
+   Effort: ~10 lines. Prevents catastrophic data loss.
+
+
+8. IMPROVE THE PERCENTAGE/DOLLAR SIDEBAR HEURISTIC (BUG-011)
+   File: scripts/utils.py, detect_table_or_sidebar_line()
+   Problem: The regex `r'\d+\s*%|\$\d+'` classifies body sentences like
+   "Companies saw a 40% improvement" as sidebar/table content, removing them
+   from the article body and keyword pool.
+   Solution: Add length and context constraints:
+       # Only flag short lines with numbers (actual table cells are short)
+       if len(line) < 50 and re.search(r'\d+\s*%|\$\d+', line):
+           return True
+   Or consider removing this heuristic entirely for lines > 40 chars.
+   Effort: 2 lines.
+
+
+9. MIGRATE FROM PyPDF2 TO pypdf (BUG-013)
+   File: scripts/requirements.txt, scripts/utils.py
+   Problem: PyPDF2 is deprecated. The deprecation warning fires on every run.
+   The API is nearly identical in pypdf.
+   Solution:
+       requirements.txt: change `PyPDF2>=3.0.0` to `pypdf>=4.0.0`
+       utils.py: change `from PyPDF2 import PdfReader` to `from pypdf import PdfReader`
+   The rest of the code (reader.metadata, /Title, /Author, /CreationDate keys) is
+   compatible with pypdf without further changes.
+   Effort: 2 file changes, 2 lines.
+
+
+10. ADD SOURCE_FILE VALIDATION TO _add_override (BUG-005)
+    File: processing_ui.py, _add_override()
+    Problem: Error message says "Title and date are required" but source_file is also
+    checked and silently blocks saving if empty.
+    Solution:
+        if not title or not date:
+            self.print_error("Title and date are required")
+            return
+        if not source_file:
+            self.print_error("Source PDF filename is required (used to match the file)")
+            return
+    Effort: 4 lines. Makes the validation requirement explicit and testable.
+
+
+ADDITIONAL IMPROVEMENTS (lower priority)
+------------------------------------------
+
+A. Add a --validate flag to process_articles.py that runs a pre-flight check
+   of all directories and dependencies without processing any PDFs.
+
+B. Add duplicate title detection: warn if two articles in the registry have
+   the same title (common when the same PDF is processed twice with different
+   filenames).
+
+C. The "By Name" author regex also matches "study conducted by John Smith"
+   in body text. Consider requiring "By" to appear in the first 200 chars only.
+
+D. Consider adding a JSON Schema validation step for the metadata registry
+   on load, so schema drift (new fields, renamed fields) is caught early.
+
+E. The CSV export does not add a UTF-8 BOM. On Windows, Excel opens UTF-8
+   CSVs without a BOM using the system code page (cp1252), corrupting accented
+   characters. Add `encoding='utf-8-sig'` to fix Excel compatibility.
+
+F. The --rebuild flag resets the entire registry from scratch. There is no
+   --merge flag for adding newly-found files to the registry without wiping
+   existing entries. Consider adding this.
+
+G. Add integration test coverage for the full pipeline with a real (tiny)
+   valid PDF — requires creating a minimal valid PDF using reportlab or fpdf2
+   in the test fixtures.
