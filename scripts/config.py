@@ -15,6 +15,38 @@ METADATA_DIR = BASE_DIR / "metadata"
 # Metadata registry file
 METADATA_REGISTRY = METADATA_DIR / "articles_metadata.json"
 
+# CrossRef API cache
+CROSSREF_CACHE = METADATA_DIR / ".crossref_cache.json"
+
+# Schema versioning
+METADATA_SCHEMA_VERSION = 2
+
+# Schema definition for version 2
+# New fields added in v2 (all optional for backward compat):
+#   authors         - List[Dict] with {first, last, full, affiliation}
+#   publication     - Dict with {journal, volume, issue, pages}
+#   doi             - str DOI (e.g. "10.1000/xyz123")
+#   url             - str URL
+#   abstract        - str abstract text
+#   pdf_archive_path - str path to archived PDF
+#   extraction_confidence - Dict[field -> float 0.0-1.0]
+#   extraction_sources    - Dict[field -> str source name]
+#   schema_version  - int (1 = legacy, 2 = current)
+#
+# Legacy fields kept for backward compat:
+#   author          - str (legacy; synthesized from authors[].full joined '; ')
+METADATA_SCHEMA_V2_FIELDS = [
+    "authors",
+    "publication",
+    "doi",
+    "url",
+    "abstract",
+    "pdf_archive_path",
+    "extraction_confidence",
+    "extraction_sources",
+    "schema_version",
+]
+
 # Processing settings
 MIN_KEYWORDS = 3
 MAX_KEYWORDS = 8

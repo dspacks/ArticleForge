@@ -41,6 +41,312 @@ except ImportError:
 from config import COMMON_STOPWORDS, DATE_FORMATS
 
 
+# ---------------------------------------------------------------------------
+# Task 1.2 — DOI extractor
+# ---------------------------------------------------------------------------
+
+_DOI_PATTERN = re.compile(
+    r'\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b',
+    re.IGNORECASE
+)
+
+
+def _validate_doi(candidate: str) -> bool:
+    """Basic structural validation of a DOI string."""
+    if not candidate:
+        return False
+    # Must start with '10.'
+    if not candidate.startswith('10.'):
+        return False
+    # Must contain exactly at least one '/' after the registrant prefix
+    if '/' not in candidate:
+        return False
+    # No spaces allowed
+    if ' ' in candidate:
+        return False
+    # Registrant prefix must be numeric (4-9 digits)
+    parts = candidate.split('/', 1)
+    prefix = parts[0]  # e.g. "10.1234"
+    prefix_digits = prefix.split('.', 1)
+    if len(prefix_digits) < 2 or not prefix_digits[1].isdigit():
+        return False
+    return True
+
+
+def extract_doi(text: str, pdf_metadata: Optional[Dict] = None) -> Optional[str]:
+    """
+    Extract DOI from PDF metadata or article text.
+
+    Search order:
+      1. PDF metadata subject/title fields
+      2. First page (first 2000 chars of text)
+      3. Last page (last 2000 chars of text, where references live)
+
+    Args:
+        text: Full extracted article text
+        pdf_metadata: Dict from extract_pdf_metadata() (optional)
+
+    Returns:
+        DOI string (e.g. "10.1234/abcd") or None
+    """
+    # 1. Search PDF metadata fields
+    if pdf_metadata:
+        for field in ('subject', 'title', 'author'):
+            value = pdf_metadata.get(field) or ''
+            m = _DOI_PATTERN.search(value)
+            if m and _validate_doi(m.group(1)):
+                return m.group(1).rstrip('.')
+
+    if not text:
+        return None
+
+    # 2. First page — most articles put DOI near the top
+    for region in (text[:2000], text[-2000:]):
+        m = _DOI_PATTERN.search(region)
+        if m and _validate_doi(m.group(1)):
+            return m.group(1).rstrip('.')
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Task 1.3 — Structured author parsing
+# ---------------------------------------------------------------------------
+
+_HONORIFICS = re.compile(
+    r'\b(Ph\.?D\.?|M\.?D\.?|M\.?B\.?A\.?|Jr\.?|Sr\.?|III|II|IV|Esq\.?|Prof\.?|Dr\.?)\b',
+    re.IGNORECASE
+)
+
+
+def _strip_honorifics(name: str) -> str:
+    """Remove common honorific suffixes from a name string."""
+    return _HONORIFICS.sub('', name).strip(' ,;')
+
+
+def _parse_single_author(raw: str) -> Optional[Dict]:
+    """
+    Parse a single author name string into structured form.
+
+    Handles:
+      - "Last, First [M.]"   (comma-separated)
+      - "First [M.] Last"    (natural order)
+
+    Returns dict with keys: first, last, full, affiliation
+    """
+    raw = _strip_honorifics(raw).strip()
+    if not raw:
+        return None
+
+    # Remove leftover parenthetical content (affiliations in parens)
+    affiliation = None
+    paren_match = re.search(r'\(([^)]+)\)', raw)
+    if paren_match:
+        affiliation = paren_match.group(1).strip()
+        raw = raw[:paren_match.start()].strip()
+
+    # "Last, First" pattern
+    if ',' in raw:
+        parts = [p.strip() for p in raw.split(',', 1)]
+        last = parts[0].strip()
+        first = parts[1].strip() if len(parts) > 1 else ''
+        full = f"{first} {last}".strip() if first else last
+    else:
+        # "First [Middle] Last" natural order
+        tokens = raw.split()
+        if len(tokens) == 1:
+            last = tokens[0]
+            first = ''
+        elif len(tokens) == 2:
+            first, last = tokens
+        else:
+            # "First Middle Last" → keep all middle initials with first
+            first = ' '.join(tokens[:-1])
+            last = tokens[-1]
+        full = f"{first} {last}".strip() if first else last
+
+    if not last:
+        return None
+
+    return {
+        'first': first,
+        'last': last,
+        'full': full,
+        'affiliation': affiliation,
+    }
+
+
+def parse_authors(raw: str) -> List[Dict]:
+    """
+    Parse a raw author string into a list of structured author dicts.
+
+    Splits on: ';', ' and ', ' & ', and ',' (when not part of Last-First).
+
+    Args:
+        raw: Raw author string (e.g. "Jane Doe; John Smith and Alice Brown")
+
+    Returns:
+        List of dicts with keys: first, last, full, affiliation
+    """
+    if not raw or not raw.strip():
+        return []
+
+    # Normalize separators: replace ' and ' / ' & ' with ';'
+    normalized = re.sub(r'\s+and\s+', ';', raw, flags=re.IGNORECASE)
+    normalized = re.sub(r'\s*&\s*', ';', normalized)
+
+    # Now split on ';'
+    raw_names = [n.strip() for n in normalized.split(';') if n.strip()]
+
+    # If only one token and it contains a comma NOT in "Last, First" position,
+    # try splitting on commas as secondary separator
+    if len(raw_names) == 1 and raw_names[0].count(',') > 1:
+        # Multiple commas: might be "Smith, John, Jones, Alice" (list of Last,First pairs)
+        # or "Smith, John, Jones Alice" — try comma split and re-group
+        parts = [p.strip() for p in raw_names[0].split(',')]
+        # Attempt to re-pair as Last, First
+        repaired = []
+        i = 0
+        while i < len(parts):
+            if i + 1 < len(parts) and parts[i + 1] and parts[i + 1][0].isupper():
+                # Looks like "Last, First" pair
+                repaired.append(f"{parts[i]}, {parts[i+1]}")
+                i += 2
+            else:
+                repaired.append(parts[i])
+                i += 1
+        if repaired:
+            raw_names = repaired
+
+    authors = []
+    for name in raw_names:
+        parsed = _parse_single_author(name)
+        if parsed:
+            authors.append(parsed)
+
+    return authors
+
+
+def extract_authors(text: str, pdf_metadata_author: Optional[str] = None) -> List[Dict]:
+    """
+    Extract structured author list from PDF metadata or article text.
+
+    Args:
+        text: Full article text
+        pdf_metadata_author: Author string from PDF metadata (preferred)
+
+    Returns:
+        List of author dicts with keys: first, last, full, affiliation
+    """
+    raw = None
+
+    # Prefer PDF metadata
+    if pdf_metadata_author and pdf_metadata_author.strip():
+        raw = pdf_metadata_author.strip()
+    elif text:
+        # Fallback: search text for author patterns
+        search_text = text[:1000]
+        # "By Name" pattern
+        m = re.search(r'[Bb]y\s+([A-Z][a-z]+(?:[\s,]+[A-Z][a-z.]+)*)', search_text)
+        if m:
+            raw = m.group(1)
+        else:
+            # "Author(s):" pattern
+            m = re.search(r'[Aa]uthor(?:\(s\))?:?\s+([A-Z][^\n]{2,80})', search_text)
+            if m:
+                raw = m.group(1).strip()
+
+    if not raw:
+        return []
+
+    return parse_authors(raw)
+
+
+# ---------------------------------------------------------------------------
+# Task 1.4 — Publication detail and abstract extractors
+# ---------------------------------------------------------------------------
+
+def extract_publication_details(text: str) -> Dict:
+    """
+    Extract structured publication details from article text.
+
+    Looks for:
+      - Journal name (near "journal:", "published in", etc.)
+      - Volume / Issue number
+      - Page range
+
+    Args:
+        text: Full article text
+
+    Returns:
+        Dict with keys: journal (Optional[str]), volume (Optional[str]),
+                        issue (Optional[str]), pages (Optional[str])
+    """
+    result: Dict = {
+        'journal': None,
+        'volume': None,
+        'issue': None,
+        'pages': None,
+    }
+
+    if not text:
+        return result
+
+    # Search first 3000 chars (header/abstract area) and last 1000 (footer/citation)
+    search_text = text[:3000] + '\n' + text[-1000:]
+
+    # Volume/Issue: "Vol. 5, No. 3" or "Volume 12, Issue 4"
+    vol_issue = re.search(
+        r'[Vv]ol(?:ume)?\.?\s*(\d+)[,\s]+(?:[Nn]o\.?|[Ii]ssue|[Ii]ss\.?)\s*(\d+)',
+        search_text
+    )
+    if vol_issue:
+        result['volume'] = vol_issue.group(1)
+        result['issue'] = vol_issue.group(2)
+
+    # Pages: "pp. 23-45" or "p. 23-45" or "pages 23–45"
+    pages = re.search(
+        r'pp?\.?\s*(\d+)\s*[-\u2013]\s*(\d+)',
+        search_text
+    )
+    if pages:
+        result['pages'] = f"{pages.group(1)}-{pages.group(2)}"
+
+    return result
+
+
+def extract_abstract(text: str) -> Optional[str]:
+    """
+    Extract abstract text from article.
+
+    Looks for "Abstract" header followed by text, ending at next section header
+    or after ~500 words.
+
+    Args:
+        text: Full article text
+
+    Returns:
+        Abstract text or None
+    """
+    if not text:
+        return None
+
+    # Pattern: "Abstract" on its own line or inline, followed by body text
+    abstract_match = re.search(
+        r'(?:^|\n)\s*[Aa]bstract\s*[\n:]\s*([\s\S]{50,2000}?)(?=\n\s*(?:[A-Z][A-Za-z ]{2,30}\n|\d+\s*\n|Introduction|Keywords|Background)|\Z)',
+        text
+    )
+    if abstract_match:
+        abstract = abstract_match.group(1).strip()
+        # Truncate at ~500 words
+        words = abstract.split()
+        if len(words) > 500:
+            abstract = ' '.join(words[:500]) + '...'
+        return abstract
+
+    return None
+
+
 def extract_pdf_metadata(pdf_path: Path) -> Dict[str, Optional[str]]:
     """
     Extract metadata (title, author, subject, creation date) from PDF properties.
@@ -340,41 +646,22 @@ def extract_title(text: str, pdf_metadata_title: Optional[str] = None) -> Option
 
 def extract_author(text: str, pdf_metadata_author: Optional[str] = None) -> Optional[str]:
     """
-    Extract author from PDF metadata or text using common patterns.
+    Legacy shim: extract author string from PDF metadata or text.
+
+    Internally delegates to extract_authors() (structured) and joins
+    full names with '; ' for backward compatibility.
 
     Args:
         text: Full article text
         pdf_metadata_author: Author from PDF metadata (preferred if available)
 
     Returns:
-        Author name or None
+        Author name string ('; '-joined if multiple) or None
     """
-    # Prefer PDF metadata if available
-    if pdf_metadata_author and pdf_metadata_author.strip():
-        return pdf_metadata_author.strip()
-
-    if not text:
+    authors = extract_authors(text, pdf_metadata_author)
+    if not authors:
         return None
-
-    # Fallback: search in text
-    search_text = text[:1000]
-
-    # Pattern 1: "By Name"
-    match = re.search(r'[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', search_text)
-    if match:
-        return match.group(1)
-
-    # Pattern 2: "Author: Name" or "Author(s):"
-    match = re.search(r'[Aa]uthor(?:\(s\))?:?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', search_text)
-    if match:
-        return match.group(1)
-
-    # Pattern 3: Multiple author pattern
-    match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*and\s+([A-Z][a-z]+)', search_text)
-    if match:
-        return f"{match.group(1)} and {match.group(2)}"
-
-    return None
+    return '; '.join(a['full'] for a in authors if a.get('full'))
 
 
 def extract_date(text: str, pdf_metadata_date: Optional[str] = None) -> Optional[str]:
