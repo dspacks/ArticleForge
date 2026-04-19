@@ -98,12 +98,13 @@ Search options:
 ### Export Mode
 
 ```bash
+python3 -m hbr_system --mode export --format bibtex
 python3 -m hbr_system --mode export --format csv
 python3 -m hbr_system --mode export --format json
 ```
 
 Export options:
-- `--format {csv|json}`: Export format
+- `--format {bibtex|csv|json}`: Export format (bibtex recommended for Zotero)
 
 ### Statistics Mode
 
@@ -200,13 +201,22 @@ HBR_DEBUG=1 python3 processing_ui.py
 
 ### With Other Tools
 
-**Export to Zotero**
+**Export to Zotero (Recommended: BibTeX)**
 ```bash
-# Export from CLI
-python3 -m hbr_system --mode export --format csv
+# Export as BibTeX (best format for Zotero)
+python3 -m hbr_system --mode export --format bibtex
 
 # Then import into Zotero (GUI)
-# File → Import → metadata/articles_export.csv
+# File → Import → metadata/articles_export.bib
+```
+
+**Alternative Formats:**
+```bash
+# CSV format (Excel-compatible)
+python3 -m hbr_system --mode export --format csv
+
+# JSON format (full metadata)
+python3 -m hbr_system --mode export --format json
 ```
 
 **Send to Email**

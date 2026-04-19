@@ -156,6 +156,123 @@ def export_to_json(articles: List[Dict], output_path: Path = None) -> None:
         print(f"✗ Error writing JSON: {e}")
 
 
+def sanitize_bibtex_key(article: Dict) -> str:
+    """
+    Create a valid BibTeX citation key from article title and date.
+
+    BibTeX keys must be alphanumeric with hyphens/underscores.
+    Format: YYYY_FirstWords_of_Title
+    """
+    date = article.get('date', '2000')
+    year = date.split('-')[0] if date else '2000'
+
+    title = article.get('title', 'Unknown')
+    # Take first 3 words, lowercase, remove non-alphanumeric
+    words = title.split()[:3]
+    title_part = '_'.join(w.lower() for w in words if w.isalnum())
+
+    # Clean up: remove special characters, keep only alphanumeric and underscore
+    title_part = ''.join(c if c.isalnum() or c == '_' else '' for c in title_part)
+
+    return f"{year}_{title_part}"[:50]  # Keep it reasonable length
+
+
+def export_to_bibtex(articles: List[Dict], output_path: Path = None) -> None:
+    """
+    Export articles in BibTeX format (native Zotero import).
+
+    BibTeX is ideal for Zotero because it's a standard citation format
+    that Zotero can parse directly without data loss.
+
+    Args:
+        articles: List of article metadata
+        output_path: Path to save BibTeX file
+    """
+    if not output_path:
+        output_path = METADATA_REGISTRY.parent / 'zotero_export.bib'
+
+    if not articles:
+        print("No articles to export.")
+        return
+
+    try:
+        bibtex_entries = []
+
+        for article in articles:
+            # Create citation key
+            cite_key = sanitize_bibtex_key(article)
+
+            # Parse date
+            date = article.get('date', '')
+            year = ''
+            month = ''
+            day = ''
+
+            if date:
+                parts = date.split('-')
+                if len(parts) >= 1:
+                    year = parts[0]
+                if len(parts) >= 2:
+                    # Convert month number to BibTeX month abbreviation
+                    month_map = ['', 'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+                                 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+                    month_num = int(parts[1]) if parts[1].isdigit() else 0
+                    month = month_map[month_num] if 0 < month_num < len(month_map) else ''
+                if len(parts) >= 3:
+                    day = parts[2]
+
+            # Format author(s) for BibTeX (Last, First and Last, First)
+            author = article.get('author', '')
+            if not author:
+                author = 'Unknown'
+
+            # Build BibTeX entry
+            entry = f"@article{{{cite_key},\n"
+            entry += f'  title = {{{article.get("title", "Unknown")}}},\n'
+
+            # Add author
+            entry += f'  author = {{{author}}},\n'
+
+            # Add publication (journal/source)
+            source = article.get('source', 'Unknown')
+            entry += f'  journal = {{{source}}},\n'
+
+            # Add date components
+            if year:
+                entry += f'  year = {{{year}}},\n'
+            if month:
+                entry += f'  month = {month},\n'
+            if day:
+                entry += f'  day = {{{day}}},\n'
+
+            # Add keywords as note
+            keywords = article.get('keywords', [])
+            if keywords:
+                keywords_str = ', '.join(keywords)
+                entry += f'  keywords = {{{keywords_str}}},\n'
+
+            # Add URL or file reference if available
+            output_file = article.get('output_file', '')
+            if output_file:
+                entry += f'  note = {{Markdown: {output_file}}},\n'
+
+            # Close entry
+            entry = entry.rstrip(',\n') + '\n}\n'
+            bibtex_entries.append(entry)
+
+        # Write to file
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(bibtex_entries))
+
+        print(f"\n✓ Exported {len(articles)} articles to {output_path}")
+        print(f"✓ BibTeX format (native Zotero import)")
+        print(f"✓ In Zotero: File → Import → Select the .bib file")
+        print(f"✓ BibTeX is ideal because Zotero parses it without data loss")
+
+    except IOError as e:
+        print(f"✗ Error writing BibTeX: {e}")
+
+
 def list_exportable(articles: List[Dict]) -> None:
     """Show articles available for Zotero export."""
     if not articles:
@@ -188,8 +305,8 @@ def main():
     parser.add_argument(
         '--export',
         type=str,
-        choices=['csv', 'json', 'all'],
-        help='Export articles in specified format or both'
+        choices=['csv', 'json', 'bibtex', 'all'],
+        help='Export articles in specified format (bibtex recommended for Zotero)'
     )
 
     args = parser.parse_args()
@@ -203,6 +320,8 @@ def main():
             export_to_csv(articles)
         if args.export in ['json', 'all']:
             export_to_json(articles)
+        if args.export in ['bibtex', 'all']:
+            export_to_bibtex(articles)
     else:
         parser.print_help()
 

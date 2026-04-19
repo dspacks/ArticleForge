@@ -10,7 +10,7 @@ A professional-grade Python system for extracting, organizing, and managing acad
 - 🏷️ **Publication Detection**: Automatically identifies HBR, WSJ, Forbes, McKinsey, Bain, FT
 - 📝 **Markdown Conversion**: Creates beautifully formatted markdown with YAML frontmatter
 - 🔍 **Full-Text Search**: Search articles by keyword, author, date, or publication source
-- 📤 **Multi-Format Export**: CSV, JSON, and Zotero-compatible formats
+- 📤 **Multi-Format Export**: BibTeX (recommended), CSV, JSON, and Zotero-compatible formats
 - 🔗 **Zotero Integration**: Push articles directly to your Zotero library with full metadata
 - 🎨 **Interactive CLI**: Beautiful terminal interface with color-coded output
 - 🔧 **Manual Overrides**: Handle problem PDFs with manual metadata entry
@@ -163,19 +163,28 @@ metadata/
 
 ### Export Articles to Zotero
 
+**⭐ Best Option: BibTeX Format**
+BibTeX is a standard citation format that Zotero natively supports with full data preservation.
+
 **Via Interactive CLI** (easiest):
 1. Run: `./start.sh`
 2. Select option 5: "Export to Zotero"
-3. Choose format (CSV recommended for Zotero)
-4. Files saved to `metadata/zotero_export.csv`
+3. Choose option 1: "BibTeX (⭐ Recommended)"
+4. File saved to `metadata/zotero_export.bib`
 
 **Via Command Line**:
 ```bash
-# Export as CSV (Zotero-compatible)
+# Export as BibTeX (RECOMMENDED - native Zotero format)
+python3 scripts/zotero_export.py --export bibtex
+
+# Export as CSV (Excel-compatible alternative)
 python3 scripts/zotero_export.py --export csv
 
-# Export as JSON (full metadata)
+# Export as JSON (full metadata, integrations)
 python3 scripts/zotero_export.py --export json
+
+# Export all formats at once
+python3 scripts/zotero_export.py --export all
 
 # List articles ready to export
 python3 scripts/zotero_export.py --list
@@ -183,13 +192,21 @@ python3 scripts/zotero_export.py --list
 
 ### Import into Zotero
 
+**For BibTeX (Recommended):**
 1. **Open Zotero** application
 2. **File** menu → **Import**
-3. **Select** the `zotero_export.csv` file
-4. **Articles appear** in your library with:
+3. **Select** the `zotero_export.bib` file
+4. **Articles appear** in your library with all metadata preserved:
    - Title, Author, Publication, Date
    - All keywords as tags
    - Processing notes
+   - Citation keys for easy reference
+
+**For CSV:**
+1. **Open Zotero** application
+2. **File** menu → **Import**
+3. **Select** the `zotero_export.csv` file
+4. Articles are imported with basic metadata
 
 ## 🛠️ Configuration
 

@@ -122,7 +122,7 @@ class HBRCLi:
             ("3", "📋 View Statistics", "Show metadata and keyword analysis"),
             ("4", "📤 Export Data", "Export to CSV or JSON"),
             ("5", "🔗 Export to Zotero", "Push articles to Zotero library"),
-            ("6", "✏️  Manage Manual Overrides", "Add/edit problem article metadata"),
+            ("6", "✏️  Metadata & Overrides", "Fix missing author & metadata issues"),
             ("7", "🏷️  Rename PDFs", "Rename archived PDFs to match markdown"),
             ("8", "📖 List All Articles", "Show all processed articles"),
             ("9", "🎯 Quick Preview", "Sample text from an article"),
@@ -277,17 +277,26 @@ class HBRCLi:
 
         print(f"You have {Colors.BOLD}{article_count}{Colors.ENDC} articles ready to export.\n")
         print("Export formats:")
-        print(f"  1. CSV (Import into Zotero via File → Import)")
-        print(f"  2. JSON (Full metadata, good for integrations)")
-        print(f"  3. Both formats")
+        print(f"  1. BibTeX (⭐ Recommended - native Zotero format)")
+        print(f"  2. CSV (Excel compatible)")
+        print(f"  3. JSON (Full metadata, good for integrations)")
+        print(f"  4. All formats")
         print(f"  0. Cancel")
         print()
 
-        choice = input(f"{Colors.CYAN}Select format (0-3): {Colors.ENDC}").strip()
+        choice = input(f"{Colors.CYAN}Select format (0-4): {Colors.ENDC}").strip()
 
         if choice == "0":
             pass
-        elif choice in ["1", "3"]:
+        elif choice in ["1", "4"]:
+            try:
+                cmd = [sys.executable, str(self.scripts_dir / "zotero_export.py"), "--export", "bibtex"]
+                subprocess.run(cmd, cwd=str(self.scripts_dir))
+                self.print_success(f"BibTeX export created in metadata/zotero_export.bib")
+            except Exception as e:
+                self.print_error(f"Could not export to BibTeX: {e}")
+
+        if choice in ["2", "4"]:
             try:
                 cmd = [sys.executable, str(self.scripts_dir / "zotero_export.py"), "--export", "csv"]
                 subprocess.run(cmd, cwd=str(self.scripts_dir))
@@ -295,7 +304,7 @@ class HBRCLi:
             except Exception as e:
                 self.print_error(f"Could not export to CSV: {e}")
 
-        if choice in ["2", "3"]:
+        if choice in ["3", "4"]:
             try:
                 cmd = [sys.executable, str(self.scripts_dir / "zotero_export.py"), "--export", "json"]
                 subprocess.run(cmd, cwd=str(self.scripts_dir))
@@ -303,18 +312,26 @@ class HBRCLi:
             except Exception as e:
                 self.print_error(f"Could not export to JSON: {e}")
 
-        if choice in ["1", "2", "3"]:
+        if choice in ["1", "2", "3", "4"]:
             print(f"\n{Colors.CYAN}Next steps:{Colors.ENDC}")
-            print(f"  1. Open Zotero")
-            print(f"  2. Click File → Import")
-            print(f"  3. Select the zotero_export.csv file from metadata/")
-            print(f"  4. Articles will be added to your library with all metadata")
+            if choice == "1" or choice == "4":
+                print(f"  {Colors.GREEN}★ BibTeX (Recommended):{Colors.ENDC}")
+                print(f"    1. Open Zotero")
+                print(f"    2. Click File → Import")
+                print(f"    3. Select zotero_export.bib from metadata/")
+                print()
+            if choice == "2" or choice == "4":
+                print(f"  CSV:")
+                print(f"    1. Open Zotero")
+                print(f"    2. Click File → Import")
+                print(f"    3. Select zotero_export.csv from metadata/")
+                print()
 
         input(f"\n{Colors.DIM}Press Enter to return to menu...{Colors.ENDC}")
 
     def menu_manual_overrides(self):
         """Menu option: Manage manual metadata overrides"""
-        self.print_section("Manage Manual Metadata Overrides")
+        self.print_section("Manage Manual Metadata & Overrides")
 
         overrides_file = self.metadata_dir / "manual_metadata_overrides.json"
 
@@ -322,10 +339,11 @@ class HBRCLi:
         print(f"  1. View current overrides")
         print(f"  2. Add new override")
         print(f"  3. Edit overrides file")
+        print(f"  4. Show articles needing metadata fixes")
         print(f"  0. Back")
         print()
 
-        choice = input(f"{Colors.CYAN}Select option (0-3): {Colors.ENDC}").strip()
+        choice = input(f"{Colors.CYAN}Select option (0-4): {Colors.ENDC}").strip()
 
         if choice == "0":
             return
@@ -336,6 +354,8 @@ class HBRCLi:
         elif choice == "3":
             self.print_info(f"Manual overrides file: {overrides_file}")
             print(f"Edit with your preferred text editor and rerun processing.")
+        elif choice == "4":
+            self._show_articles_needing_fixes()
         else:
             self.print_error("Invalid option")
 
@@ -403,6 +423,10 @@ class HBRCLi:
             self.print_success(f"Override added for: {title}")
         except Exception as e:
             self.print_error(f"Could not save override: {e}")
+
+    def _show_articles_needing_fixes(self):
+        """Show articles that need manual metadata editing"""
+        self._run_query("--needs-editing")
 
     def menu_rename_pdfs(self):
         """Menu option: Rename PDFs"""

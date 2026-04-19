@@ -187,6 +187,7 @@ pdf_archive/
 metadata/articles_metadata.json
 metadata/zotero_export.csv
 metadata/zotero_export.json
+metadata/zotero_export.bib
 metadata/articles_export.csv
 metadata/articles_export.json
 metadata/manual_metadata_overrides.json
@@ -202,4 +203,3 @@ metadata/manual_metadata_overrides.json
 Thumbs.db
 *.bak
 *.tmp
-DELIVERY_SUMMARY.md
