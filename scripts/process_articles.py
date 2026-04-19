@@ -26,8 +26,10 @@ from config import (
 from utils import (
     extract_text_from_pdf, extract_pdf_metadata, extract_title, extract_author, extract_date,
     extract_keywords, sanitize_filename, create_markdown_content,
-    parse_metadata_from_filename, extract_publication
+    parse_metadata_from_filename, extract_publication,
+    extract_doi, extract_authors, extract_publication_details, extract_abstract,
 )
+from metadata_enricher import enrich as enrich_metadata
 
 
 class ArticleProcessor:
@@ -145,6 +147,15 @@ class ArticleProcessor:
             else:
                 source = filename_metadata.get('source', 'Unknown')
 
+            # --- Phase 1 / 2 new extractions ---
+            print("  → Extracting DOI, structured authors, publication details...")
+            doi = extract_doi(text, pdf_metadata)
+            authors_structured = extract_authors(text, pdf_metadata.get('author'))
+            pub_details = extract_publication_details(text)
+            abstract = extract_abstract(text)
+            # PDF archive path (will be set after archiving)
+            pdf_archive_path = str(ARCHIVE_DIR / pdf_path.name)
+
             # Sanitize title for filename
             safe_title = sanitize_filename(title)
             if date:
@@ -162,8 +173,9 @@ class ArticleProcessor:
                 source=source
             )
 
-            # Prepare metadata entry
+            # Prepare metadata entry (v2 schema)
             metadata_entry = {
+                # --- legacy fields (v1 compat) ---
                 'source_file': pdf_path.name,
                 'output_file': filename,
                 'title': title,
@@ -176,11 +188,37 @@ class ArticleProcessor:
                     'title_source': 'PDF' if pdf_metadata.get('title') else 'text_parsed',
                     'author_source': 'PDF' if pdf_metadata.get('author') else 'text_parsed',
                     'date_source': 'PDF' if pdf_metadata.get('date') else 'text_parsed',
-                }
+                },
+                # --- v2 fields ---
+                'schema_version': 2,
+                'authors': authors_structured,
+                'doi': doi,
+                'url': None,
+                'abstract': abstract,
+                'publication': pub_details,
+                'pdf_archive_path': pdf_archive_path,
+                'extraction_confidence': {},
+                'extraction_sources': {},
             }
+
+            # Seed confidence for locally-extracted fields
+            if doi:
+                metadata_entry['extraction_confidence']['doi'] = 0.9
+                metadata_entry['extraction_sources']['doi'] = 'text_regex'
+            if authors_structured:
+                metadata_entry['extraction_confidence']['authors'] = (
+                    0.9 if pdf_metadata.get('author') else 0.6
+                )
+                metadata_entry['extraction_sources']['authors'] = (
+                    'pdf_metadata' if pdf_metadata.get('author') else 'text_parsed'
+                )
 
             # Add filename-derived metadata
             metadata_entry.update(filename_metadata)
+
+            # --- Phase 2: Semantic enrichment via CrossRef ---
+            print("  → Enriching via CrossRef...")
+            metadata_entry = enrich_metadata(metadata_entry, text)
 
             # Write markdown file
             if not self.dry_run:
