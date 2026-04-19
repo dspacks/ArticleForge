@@ -944,7 +944,10 @@ class TestZoteroExport:
         assert result["title"] == "Test Title"
         assert result["itemType"] == "journalArticle"
         assert len(result["creators"]) == 1
-        assert result["creators"][0]["name"] == "Jane Doe"
+        creator = result["creators"][0]
+        # v2: structured authors use firstName/lastName; check full name reconstructs correctly
+        full_name = (creator.get("firstName", "") + " " + creator.get("lastName", "")).strip()
+        assert full_name == "Jane Doe" or creator.get("name") == "Jane Doe"
         assert any(t["tag"] == "strategy" for t in result["tags"])
 
     def test_format_multiple_authors(self):
