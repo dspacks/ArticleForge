@@ -198,6 +198,92 @@ class CrossRefClient:
         _save_cache(self._cache)
         return None
 
+    def search_title_by_author_date(
+        self,
+        author: str,
+        date: str,
+        title_snippet: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Search CrossRef for an article title using author last name + publication year.
+
+        Useful when local title extraction is weak or uncertain.  Unlike
+        ``search_by_title`` (which requires a reasonably good title), this
+        method uses *author* and *year* as the primary search axes and treats
+        ``title_snippet`` as an optional refinement filter.
+
+        Args:
+            author: Author last name (or full name — only the last token is used).
+            date:   Publication year or YYYY-MM-DD string. Only the 4-digit year
+                    portion is used.
+            title_snippet: Optional partial/uncertain title extracted locally.
+                           When provided, results are filtered by fuzzy match
+                           (SequenceMatcher ratio ≥ 0.70).  When None, the best
+                           single result is returned without fuzzy filtering.
+
+        Returns:
+            The best-matched title string from CrossRef, or None.
+        """
+        # --- Normalise inputs ---
+        author_last = author.split()[-1].strip() if author else ''
+        year_match = re.search(r'\d{4}', date) if date else None
+        year = year_match.group(0) if year_match else ''
+
+        if not author_last or not year:
+            return None
+
+        # --- Cache key ---
+        snippet_key = (title_snippet or '').lower()[:60]
+        cache_key = f"title_by_author_date:{author_last.lower()}:{year}:{snippet_key}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        # --- Build CrossRef query ---
+        params: Dict = {
+            'query.author': author_last,
+            'filter': f'from-pub-date:{year},until-pub-date:{year}',
+            'rows': 5,
+            'select': 'DOI,title,author,issued',
+        }
+
+        data = self._get(CROSSREF_SEARCH_URL, params=params)
+        if not data or data.get('status') != 'ok':
+            self._cache[cache_key] = None
+            _save_cache(self._cache)
+            return None
+
+        items = data.get('message', {}).get('items', [])
+        if not items:
+            self._cache[cache_key] = None
+            _save_cache(self._cache)
+            return None
+
+        SNIPPET_THRESHOLD = 0.70   # lower than full-title search — snippet may be partial
+
+        best_title: Optional[str] = None
+
+        for item in items:
+            item_titles = item.get('title', [])
+            if not item_titles:
+                continue
+            candidate = item_titles[0]
+
+            if title_snippet:
+                ratio = SequenceMatcher(
+                    None, title_snippet.lower(), candidate.lower()
+                ).ratio()
+                if ratio >= SNIPPET_THRESHOLD:
+                    best_title = candidate
+                    break
+            else:
+                # No snippet — take the first (most-relevant) result
+                best_title = candidate
+                break
+
+        self._cache[cache_key] = best_title
+        _save_cache(self._cache)
+        return best_title
+
     def search_by_title(self, title: str, author_last: Optional[str] = None) -> Optional[Dict]:
         """
         Search CrossRef by title (and optionally author last name).

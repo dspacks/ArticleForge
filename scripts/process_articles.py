@@ -28,7 +28,9 @@ from utils import (
     extract_keywords, sanitize_filename, create_markdown_content,
     parse_metadata_from_filename, extract_publication,
     extract_doi, extract_authors, extract_publication_details, extract_abstract,
+    extract_title_improved,
 )
+from crossref_client import CrossRefClient
 from metadata_enricher import enrich as enrich_metadata
 
 
@@ -79,9 +81,9 @@ class ArticleProcessor:
             try:
                 with open(METADATA_REGISTRY, 'w') as f:
                     json.dump(self.metadata, f, indent=2)
-                print(f"\n✓ Metadata registry saved to {METADATA_REGISTRY}")
+                print(f"\n[+] Metadata registry saved to {METADATA_REGISTRY}")
             except IOError as e:
-                print(f"✗ Error saving metadata registry: {e}")
+                print(f"[!] Error saving metadata registry: {e}")
 
     def article_exists(self, pdf_filename: str) -> bool:
         """Check if article has already been processed."""
@@ -104,34 +106,60 @@ class ArticleProcessor:
 
         try:
             # Extract PDF metadata first (from document properties)
-            print("  → Extracting PDF metadata...")
+            print("  [*] Extracting PDF metadata...")
             pdf_metadata = extract_pdf_metadata(pdf_path)
 
             # Extract text from PDF
-            print("  → Extracting text...")
+            print("  [*] Extracting text...")
             text = extract_text_from_pdf(pdf_path)
 
             if not text or len(text) < 100:
-                print("  ✗ No text extracted from PDF (may be empty/corrupted)")
+                print("  [!] No text extracted from PDF (may be empty/corrupted)")
                 return None
 
             # Extract metadata (uses PDF metadata as primary source, falls back to text parsing)
-            print("  → Parsing title, author, date...")
-            title = extract_title(text, pdf_metadata.get('title'))
+            print("  [*] Parsing title, author, date...")
             author = extract_author(text, pdf_metadata.get('author'))
             date = extract_date(text, pdf_metadata.get('date'))
+
+            # --- Improved title extraction ---
+            title, title_confidence = extract_title_improved(text, pdf_metadata.get('title'))
+            title_source = 'pdf_metadata' if pdf_metadata.get('title') and title_confidence >= 0.95 \
+                           else 'text_improved'
+            print(f"  [*] Title confidence: {title_confidence:.2f} (source: {title_source})")
+
+            # If title is weak or missing, try CrossRef by author + date
+            if (not title or title_confidence < 0.70) and author:
+                print("  [*] Weak title extraction — trying CrossRef author/date search...")
+                try:
+                    _cr_client = CrossRefClient()
+                    author_last = author.split(';')[0].strip().split()[-1] if author else None
+                    crossref_title = _cr_client.search_title_by_author_date(
+                        author=author_last or author,
+                        date=date or '',
+                        title_snippet=title,
+                    )
+                    if crossref_title:
+                        print(f"  [+] CrossRef title: {crossref_title[:80]}")
+                        title = crossref_title
+                        title_confidence = 0.95
+                        title_source = 'crossref'
+                except Exception as _e:
+                    print(f"  [~] CrossRef title search failed: {_e}")
 
             if not title:
                 # Check for manual override
                 override = self.manual_overrides.get(pdf_path.name)
                 if override:
-                    print("  → Using manual metadata override...")
+                    print("  [*] Using manual metadata override...")
                     title = override.get('title')
                     author = override.get('author') or author
                     date = override.get('date') or date
-                    print(f"  ✓ Loaded from override: {title}")
+                    title_confidence = 1.0
+                    title_source = 'manual'
+                    print(f"  [+] Loaded from override: {title}")
                 else:
-                    print("  ✗ Could not extract article title")
+                    print("  [!] Could not extract article title")
                     return None
 
             # Extract keywords
@@ -148,7 +176,7 @@ class ArticleProcessor:
                 source = filename_metadata.get('source', 'Unknown')
 
             # --- Phase 1 / 2 new extractions ---
-            print("  → Extracting DOI, structured authors, publication details...")
+            print("  [*] Extracting DOI, structured authors, publication details...")
             doi = extract_doi(text, pdf_metadata)
             authors_structured = extract_authors(text, pdf_metadata.get('author'))
             pub_details = extract_publication_details(text)
@@ -185,7 +213,7 @@ class ArticleProcessor:
                 'text_length': len(text),
                 'processed_date': datetime.now().isoformat(),
                 'pdf_metadata': {
-                    'title_source': 'PDF' if pdf_metadata.get('title') else 'text_parsed',
+                    'title_source': title_source,
                     'author_source': 'PDF' if pdf_metadata.get('author') else 'text_parsed',
                     'date_source': 'PDF' if pdf_metadata.get('date') else 'text_parsed',
                 },
@@ -202,6 +230,8 @@ class ArticleProcessor:
             }
 
             # Seed confidence for locally-extracted fields
+            metadata_entry['extraction_confidence']['title'] = title_confidence
+            metadata_entry['extraction_sources']['title'] = title_source
             if doi:
                 metadata_entry['extraction_confidence']['doi'] = 0.9
                 metadata_entry['extraction_sources']['doi'] = 'text_regex'
@@ -217,7 +247,7 @@ class ArticleProcessor:
             metadata_entry.update(filename_metadata)
 
             # --- Phase 2: Semantic enrichment via CrossRef ---
-            print("  → Enriching via CrossRef...")
+            print("  [*] Enriching via CrossRef...")
             metadata_entry = enrich_metadata(metadata_entry, text)
 
             # Write markdown file
@@ -225,15 +255,18 @@ class ArticleProcessor:
                 output_path = OUTPUT_DIR / filename
                 with open(output_path, 'w', encoding='utf-8') as f:
                     f.write(md_content)
-                print(f"  ✓ Wrote: {output_path.name}")
+                print(f"  [+] Wrote: {output_path.name}")
 
-                # Move PDF to archive
-                archive_path = ARCHIVE_DIR / pdf_path.name
-                pdf_path.rename(archive_path)
-                print(f"  ✓ Archived: {archive_path.name}")
-
-                # Add to metadata registry
+                # Add to metadata registry (do this even if PDF move fails)
                 self.metadata['articles'].append(metadata_entry)
+
+                # Try to move PDF to archive (fail silently if already exists)
+                archive_path = ARCHIVE_DIR / pdf_path.name
+                try:
+                    pdf_path.rename(archive_path)
+                    print(f"  [+] Archived: {archive_path.name}")
+                except FileExistsError:
+                    print(f"  [~] PDF already archived (skipped move)")
 
             else:
                 print(f"  [DRY RUN] Would write: {filename}")
@@ -242,7 +275,7 @@ class ArticleProcessor:
             return metadata_entry
 
         except Exception as e:
-            print(f"  ✗ Error: {e}")
+            print(f"  [!] Error: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -297,9 +330,9 @@ class ArticleProcessor:
         print(f"{'=' * 70}")
 
         if self.stats['successful'] > 0:
-            print(f"\n✓ Output files: {OUTPUT_DIR}")
-            print(f"✓ Archived PDFs: {ARCHIVE_DIR}")
-            print(f"✓ Metadata registry: {METADATA_REGISTRY}")
+            print(f"\n[+] Output files: {OUTPUT_DIR}")
+            print(f"[+] Archived PDFs: {ARCHIVE_DIR}")
+            print(f"[+] Metadata registry: {METADATA_REGISTRY}")
 
     def rebuild_registry(self) -> None:
         """Rebuild metadata registry from existing output files."""

@@ -315,6 +315,376 @@ class TestExtractAbstract:
 
 
 # ===========================================================================
+# SECTION 5b — extract_title_improved
+# ===========================================================================
+
+class TestExtractTitleImproved:
+    """Tests for the magazine-style title extractor added in the title-extraction enhancement."""
+
+    # ------------------------------------------------------------------
+    # Magazine-style: section header + multi-line title
+    # ------------------------------------------------------------------
+
+    def test_section_header_single_line(self):
+        """'MANAGING YOURSELF: Make the Most of Your Meetings' on one line."""
+        from utils import extract_title_improved
+        text = "MANAGING YOURSELF: Make the Most of Your Meetings\nBy Jane Smith\nContent..."
+        title, confidence = extract_title_improved(text)
+        assert title is not None
+        assert "Make the Most" in title
+        assert confidence >= 0.90
+
+    def test_section_header_multi_line_title(self):
+        """Section header colon, then title spread over two lines."""
+        from utils import extract_title_improved
+        text = (
+            "MANAGING YOURSELF:\n"
+            "Make the Most of Your\n"
+            "One-on-One Meetings\n"
+            "By Jane Smith\n"
+            "Although Bill thought of himself as a good manager..."
+        )
+        title, confidence = extract_title_improved(text)
+        assert title is not None
+        assert "One-on-One" in title
+        assert "Make the Most" in title
+        assert confidence >= 0.90
+
+    def test_section_header_with_subtitle_dek(self):
+        """Title lines followed by a short dek sentence are all captured."""
+        from utils import extract_title_improved
+        text = (
+            "MANAGING YOURSELF:\n"
+            "Make the Most of Your\n"
+            "One-on-One Meetings,\n"
+            "They can be a highly effective leadership tool.\n"
+            "By Jane Smith\n"
+            "Body text begins here..."
+        )
+        title, confidence = extract_title_improved(text)
+        assert title is not None
+        # Title should contain the main headline
+        assert "One-on-One Meetings" in title
+        assert confidence >= 0.90
+
+    def test_body_text_not_captured_as_title(self):
+        """Body text that starts with lowercase should not be part of the title."""
+        from utils import extract_title_improved
+        text = (
+            "MANAGING YOURSELF:\n"
+            "Make the Most of Your Meetings\n"
+            "Although Bill thought of himself as a good manager, he struggled...\n"
+        )
+        title, confidence = extract_title_improved(text)
+        assert title is not None
+        assert "Although Bill" not in title
+
+    def test_byline_stops_title_collection(self):
+        """Title lines stop at 'By Author' even mid-sequence."""
+        from utils import extract_title_improved
+        text = (
+            "LEADERSHIP CORNER:\n"
+            "Build Better Teams\n"
+            "By Alice Brown\n"
+            "This article examines team dynamics."
+        )
+        title, confidence = extract_title_improved(text)
+        assert title is not None
+        assert "Alice Brown" not in title
+        assert "Build Better Teams" in title
+
+    # ------------------------------------------------------------------
+    # Multi-line title without explicit section header
+    # ------------------------------------------------------------------
+
+    def test_multi_line_title_no_header(self):
+        """Pure multi-line title with no section header prefix."""
+        from utils import extract_title_improved
+        text = (
+            "How Great Leaders\n"
+            "Inspire Action\n"
+            "By Simon Sinek\n"
+            "People don't buy what you do..."
+        )
+        title, confidence = extract_title_improved(text)
+        assert title is not None
+        assert "How Great Leaders" in title
+        # At least medium confidence
+        assert confidence >= 0.60
+
+    # ------------------------------------------------------------------
+    # PDF metadata preference
+    # ------------------------------------------------------------------
+
+    def test_pdf_metadata_preferred_over_text(self):
+        """Good PDF metadata title wins regardless of text content."""
+        from utils import extract_title_improved
+        text = "MANAGING YOURSELF:\nSome Other Title\nBy Author\nBody..."
+        pdf_title = "The Real Title from PDF Metadata"
+        title, confidence = extract_title_improved(text, pdf_metadata_title=pdf_title)
+        assert title == pdf_title
+        assert confidence == 0.95
+
+    def test_pdf_metadata_rejected_if_too_short(self):
+        """PDF metadata shorter than 6 chars should fall through to text parsing."""
+        from utils import extract_title_improved
+        text = "FEATURE:\nActual Title Here\nBy Someone\nBody text..."
+        title, confidence = extract_title_improved(text, pdf_metadata_title="X")
+        assert title is not None
+        # Must have come from text, not the single-char metadata
+        assert title != "X"
+
+    def test_pdf_metadata_rejected_if_looks_like_filename(self):
+        """PDF metadata that looks like a filename should be skipped."""
+        from utils import extract_title_improved
+        text = "FEATURE:\nReal Article Title\nBy Author\n"
+        title, confidence = extract_title_improved(text, pdf_metadata_title="article_draft.pdf")
+        assert title != "article_draft.pdf"
+
+    # ------------------------------------------------------------------
+    # Fallback / edge cases
+    # ------------------------------------------------------------------
+
+    def test_empty_text_returns_none(self):
+        from utils import extract_title_improved
+        title, confidence = extract_title_improved("")
+        assert title is None
+        assert confidence == 0.0
+
+    def test_none_text_returns_none(self):
+        from utils import extract_title_improved
+        title, confidence = extract_title_improved(None)
+        assert title is None
+        assert confidence == 0.0
+
+    def test_plain_body_text_no_header_falls_back(self):
+        """Pure body text (no header, no clear title) returns a result or None, but not a crash."""
+        from utils import extract_title_improved
+        text = "although bill thought of himself as a good manager he struggled with..."
+        title, confidence = extract_title_improved(text)
+        # May be None or fallback; must not crash and confidence must be in range
+        assert 0.0 <= confidence <= 1.0
+
+    def test_returns_tuple(self):
+        """extract_title_improved must always return a 2-tuple."""
+        from utils import extract_title_improved
+        result = extract_title_improved("Some text here for testing purposes.")
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    # ------------------------------------------------------------------
+    # Confidence scoring
+    # ------------------------------------------------------------------
+
+    def test_confidence_is_float(self):
+        from utils import extract_title_improved
+        _, confidence = extract_title_improved("FEATURE:\nTitle Here\nBy X\n")
+        assert isinstance(confidence, float)
+
+    def test_section_header_confidence_at_least_090(self):
+        from utils import extract_title_improved
+        _, confidence = extract_title_improved(
+            "FEATURE STORY:\nThe Rise of AI Leaders\nBy Alice Brown\n"
+        )
+        assert confidence >= 0.90
+
+
+# ===========================================================================
+# SECTION 5c — CrossRefClient.search_title_by_author_date
+# ===========================================================================
+
+class TestSearchTitleByAuthorDate:
+    """Tests for the new CrossRef author+date title-search method."""
+
+    def test_returns_title_string_on_match(self, monkeypatch):
+        """A matching CrossRef result returns the title string (not a dict)."""
+        import crossref_client as cc
+
+        mock_data = {
+            'status': 'ok',
+            'message': {
+                'items': [
+                    {'title': ['Make the Most of Your One-on-One Meetings'],
+                     'author': [{'family': 'Smith', 'given': 'Jane'}],
+                     'issued': {'date-parts': [[2024]]}}
+                ]
+            }
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_data
+
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_resp
+
+        monkeypatch.setattr(cc, 'REQUESTS_AVAILABLE', True)
+        monkeypatch.setattr(cc, 'requests', mock_requests)
+
+        client = cc.CrossRefClient()
+        client._cache = {}  # clear any cached state
+
+        result = client.search_title_by_author_date(
+            author='Smith', date='2024',
+        )
+        assert isinstance(result, str)
+        assert 'One-on-One' in result
+
+    def test_snippet_fuzzy_filter_rejects_poor_match(self, monkeypatch):
+        """When snippet is provided and ratio < 0.70, None is returned."""
+        import crossref_client as cc
+
+        mock_data = {
+            'status': 'ok',
+            'message': {
+                'items': [
+                    {'title': ['A Completely Unrelated Article About Finance'],
+                     'issued': {'date-parts': [[2024]]}}
+                ]
+            }
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_data
+
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_resp
+
+        monkeypatch.setattr(cc, 'REQUESTS_AVAILABLE', True)
+        monkeypatch.setattr(cc, 'requests', mock_requests)
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        result = client.search_title_by_author_date(
+            author='Smith', date='2024',
+            title_snippet='Make the Most of Your One-on-One Meetings',
+        )
+        assert result is None
+
+    def test_snippet_fuzzy_filter_accepts_good_match(self, monkeypatch):
+        """When snippet is provided and ratio ≥ 0.70, the title is returned."""
+        import crossref_client as cc
+
+        crossref_title = 'Make the Most of Your One-on-One Meetings'
+        mock_data = {
+            'status': 'ok',
+            'message': {
+                'items': [
+                    {'title': [crossref_title],
+                     'issued': {'date-parts': [[2024]]}}
+                ]
+            }
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_data
+
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_resp
+
+        monkeypatch.setattr(cc, 'REQUESTS_AVAILABLE', True)
+        monkeypatch.setattr(cc, 'requests', mock_requests)
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        result = client.search_title_by_author_date(
+            author='Smith', date='2024',
+            title_snippet='Make the Most of Your One-on-One',  # partial
+        )
+        assert result == crossref_title
+
+    def test_offline_returns_none(self, monkeypatch):
+        """When requests is unavailable, return None gracefully."""
+        import crossref_client as cc
+        monkeypatch.setattr(cc, 'REQUESTS_AVAILABLE', False)
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        result = client.search_title_by_author_date(author='Smith', date='2024')
+        assert result is None
+
+    def test_missing_author_returns_none(self, monkeypatch):
+        """Empty author string → None (cannot build a meaningful query)."""
+        import crossref_client as cc
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        result = client.search_title_by_author_date(author='', date='2024')
+        assert result is None
+
+    def test_missing_year_returns_none(self):
+        """Non-parseable date → None."""
+        import crossref_client as cc
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        result = client.search_title_by_author_date(author='Smith', date='not-a-date')
+        assert result is None
+
+    def test_result_is_cached(self, monkeypatch):
+        """A result should be stored in the in-memory cache after first lookup."""
+        import crossref_client as cc
+
+        mock_data = {
+            'status': 'ok',
+            'message': {
+                'items': [
+                    {'title': ['Cached Title Article'],
+                     'issued': {'date-parts': [[2024]]}}
+                ]
+            }
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_data
+
+        mock_requests = MagicMock()
+        mock_requests.get.return_value = mock_resp
+
+        monkeypatch.setattr(cc, 'REQUESTS_AVAILABLE', True)
+        monkeypatch.setattr(cc, 'requests', mock_requests)
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        # First call
+        client.search_title_by_author_date(author='Smith', date='2024')
+
+        # Second call — mock should only have been called once (cached)
+        mock_requests.get.reset_mock()
+        client.search_title_by_author_date(author='Smith', date='2024')
+        assert mock_requests.get.call_count == 0
+
+    def test_year_extracted_from_full_date(self, monkeypatch):
+        """YYYY-MM-DD date strings are handled; only year is used in query."""
+        import crossref_client as cc
+
+        call_params = {}
+
+        def fake_get(url, params=None, headers=None, timeout=None):
+            call_params.update(params or {})
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {'status': 'ok', 'message': {'items': []}}
+            return resp
+
+        monkeypatch.setattr(cc, 'REQUESTS_AVAILABLE', True)
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = fake_get
+        monkeypatch.setattr(cc, 'requests', mock_requests)
+
+        client = cc.CrossRefClient()
+        client._cache = {}
+
+        client.search_title_by_author_date(author='Smith', date='2024-07-16')
+        assert '2024' in call_params.get('filter', '')
+
+
+# ===========================================================================
 # SECTION 6 — _normalize_record (backward-compat shim)
 # ===========================================================================
 

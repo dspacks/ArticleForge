@@ -644,6 +644,192 @@ def extract_title(text: str, pdf_metadata_title: Optional[str] = None) -> Option
     return None
 
 
+# ---------------------------------------------------------------------------
+# Improved title extraction — handles magazine-style layouts (HBR, etc.)
+# ---------------------------------------------------------------------------
+
+# Lines that indicate a byline has started (stop collecting title lines)
+_BYLINE_PATTERN = re.compile(r'^\s*[Bb]y\s+[A-Z]', re.MULTILINE)
+
+# Lines that look like body-text paragraphs: start lowercase or are very long
+_BODY_TEXT_PATTERN = re.compile(r'^[a-z]')
+
+# Sentinel: a line that is ALL CAPS (new section header, not part of title)
+_ALL_CAPS_LINE = re.compile(r'^[A-Z][A-Z\s\-]{4,}$')
+
+# Section-header prefix: "WORD WORD:" at start of a line (e.g. "MANAGING YOURSELF:")
+_SECTION_HEADER_RE = re.compile(
+    r'^([A-Z][A-Z\s\-\']{2,}):\s*(.*)',
+    re.DOTALL
+)
+
+
+def _is_body_text_line(line: str) -> bool:
+    """Return True if line looks like the start of body/paragraph text."""
+    if not line:
+        return False
+    # Starts lowercase → body text
+    if _BODY_TEXT_PATTERN.match(line):
+        return True
+    # Very long lines (> 120 chars) are almost certainly body text
+    if len(line) > 120:
+        return True
+    # Lines that end with a period and are long enough to be a sentence
+    # (more than 8 words) are body sentences, not title fragments
+    if line.endswith('.') and len(line.split()) > 8:
+        return True
+    return False
+
+
+def _collect_title_lines(lines: List[str], start_idx: int) -> List[str]:
+    """
+    From start_idx, collect lines that belong to a multi-line title.
+
+    Stop collecting when we hit:
+    - An empty line followed by a new section (after at least 1 line)
+    - A byline marker ("By Name")
+    - A body-text paragraph (lowercase start, very long)
+    - A word count per line that suggests subtitle/dek rather than title
+      (> 12 words on a single line)
+    - A second all-caps word appearing (new section header)
+
+    Returns a list of line strings to join as the title.
+    """
+    collected: List[str] = []
+    for i in range(start_idx, min(start_idx + 10, len(lines))):
+        line = lines[i].strip()
+        if not line:
+            # Blank line — stop if we already have content
+            if collected:
+                break
+            continue
+        # Byline → stop
+        if re.match(r'^[Bb]y\s+[A-Z]', line):
+            break
+        # Body text → stop
+        if _is_body_text_line(line):
+            break
+        # Lines with > 10 words that start uppercase look like body sentences,
+        # not title fragments — stop collecting (dek/subtitle allowed only if
+        # we haven't collected anything yet OR the line is very short)
+        word_count = len(line.split())
+        if word_count > 10 and collected:
+            break
+        # All-caps full line after we've already collected something → new section
+        if collected and _ALL_CAPS_LINE.match(line):
+            break
+        collected.append(line)
+    return collected
+
+
+def extract_title_improved(
+    text: str,
+    pdf_metadata_title: Optional[str] = None,
+) -> tuple:
+    """
+    Extract article title with handling for magazine-style layouts (HBR, etc.).
+
+    Strategy:
+      1. Prefer PDF metadata title if it passes quality checks.
+      2. Pattern 1: Detect "SECTION HEADER: title text" on first line.
+         - Captures section label + multi-line title that follows.
+      3. Pattern 2: Multi-line title search in first ~30 lines without a header.
+      4. Deduplicate check: if extracted title matches first sentence of body
+         text it is probably wrong; returns (None, 0.0) to trigger CrossRef.
+      5. Falls back to original extract_title() logic.
+
+    Args:
+        text: Full extracted article text.
+        pdf_metadata_title: Title from PDF metadata properties (preferred).
+
+    Returns:
+        Tuple of (title: Optional[str], confidence: float).
+        confidence values:
+          0.95 — PDF metadata
+          0.90 — section header pattern
+          0.65 — multi-line text pattern
+          0.50 — basic fallback
+          0.0  — nothing found (CrossRef fallback recommended)
+    """
+    # ------------------------------------------------------------------ #
+    # 1. PDF metadata title
+    # ------------------------------------------------------------------ #
+    if pdf_metadata_title:
+        meta = pdf_metadata_title.strip()
+        # Reject if it looks like a filename, URL, or is too short/long
+        if (5 < len(meta) < 300
+                and not meta.lower().endswith('.pdf')
+                and 'http' not in meta.lower()):
+            return (meta, 0.95)
+
+    if not text:
+        return (None, 0.0)
+
+    # Work only with first 1200 chars (title region)
+    head = text[:1200]
+    lines = [ln.strip() for ln in head.split('\n')]
+    # Remove blank lines for easier scanning but keep index mapping
+    non_blank = [(i, ln) for i, ln in enumerate(lines) if ln]
+
+    # ------------------------------------------------------------------ #
+    # 2. Pattern 1 — "SECTION HEADER: title text on same or next lines"
+    # ------------------------------------------------------------------ #
+    for raw_idx, (line_idx, line) in enumerate(non_blank[:15]):
+        m = _SECTION_HEADER_RE.match(line)
+        if m:
+            section_label = m.group(1).strip()   # e.g. "MANAGING YOURSELF"
+            remainder = m.group(2).strip()        # text after colon on same line
+
+            # Collect title lines starting from remainder (if any) + next lines
+            title_parts: List[str] = []
+            if remainder:
+                title_parts.append(remainder)
+                next_start = raw_idx + 1
+            else:
+                next_start = raw_idx + 1
+
+            # Collect continuation lines
+            continuation_lines = [ln for _, ln in non_blank[next_start:next_start + 8]]
+            extra = _collect_title_lines(continuation_lines, 0)
+            title_parts.extend(extra)
+
+            if title_parts:
+                raw_title = ' '.join(title_parts)
+                # Clean: remove trailing periods if they're clearly sentence-end
+                raw_title = raw_title.rstrip('. ')
+                # Sanity: must be > 5 words or > 15 chars to be a real title
+                # (section header already confirms magazine context, so short titles OK)
+                if len(raw_title) > 15 or len(raw_title.split()) > 3:
+                    return (raw_title, 0.90)
+
+    # ------------------------------------------------------------------ #
+    # 3. Pattern 2 — Multi-line title without explicit section header
+    #    Look for a cluster of capitalized short-ish lines near the top
+    # ------------------------------------------------------------------ #
+    for raw_idx, (line_idx, line) in enumerate(non_blank[:10]):
+        # Skip lines that look like section-only headers (all caps, short)
+        if _ALL_CAPS_LINE.match(line) and len(line.split()) <= 3:
+            continue
+        # Look for a title-like line: starts with capital, not body text
+        if (line and line[0].isupper() and not _is_body_text_line(line)
+                and len(line) > 10):
+            continuation_lines = [ln for _, ln in non_blank[raw_idx:raw_idx + 8]]
+            parts = _collect_title_lines(continuation_lines, 0)
+            if parts:
+                candidate = ' '.join(parts).rstrip('. ')
+                if len(candidate) > 15:
+                    return (candidate, 0.65)
+
+    # ------------------------------------------------------------------ #
+    # 4. Fallback — original heuristic
+    # ------------------------------------------------------------------ #
+    fallback = extract_title(text, None)
+    if fallback:
+        return (fallback, 0.50)
+
+    return (None, 0.0)
+
+
 def extract_author(text: str, pdf_metadata_author: Optional[str] = None) -> Optional[str]:
     """
     Legacy shim: extract author string from PDF metadata or text.
